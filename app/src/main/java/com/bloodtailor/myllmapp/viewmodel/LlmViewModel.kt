@@ -37,7 +37,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     // UI state
     var isLoading by mutableStateOf(false)
         private set
-    var statusMessage by mutableStateOf("")
+    var statusMessage by mutableStateOf("Please configure server address in settings")
         private set
     var formattedPrompt by mutableStateOf<String?>(null)
         private set
@@ -46,22 +46,23 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     
     // Default values
     val DEFAULT_CONTEXT_LENGTH = 2048
-    
+
+
     init {
-        // Initialize with current server URL
-        updateServerUrl(repository.getServerUrl())
+        // Initialize with current server URL but don't fetch models automatically
+        updateServerUrl(repository.getServerUrl(), autoConnect = false)
     }
-    
-    /**
-     * Update the server URL and refresh data
-     */
-    fun updateServerUrl(url: String) {
+
+    // Update this method to include an autoConnect parameter
+    fun updateServerUrl(url: String, autoConnect: Boolean = true) {
         repository.updateServerUrl(url)
         serverUrl = url
-        
-        // Refresh data with new URL
-        fetchAvailableModels()
-        checkModelStatus()
+
+        // Only refresh data if autoConnect is true
+        if (autoConnect) {
+            fetchAvailableModels()
+            checkModelStatus()
+        }
     }
     
     /**

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.bloodtailor.myllmapp.ui.*
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
+import androidx.compose.ui.Alignment
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +41,14 @@ class MainActivity : ComponentActivity() {
         var showFormattedPrompt by remember { mutableStateOf(false) }
         var localFormattedPrompt by remember { mutableStateOf("") }
         var showSettingsDialog by remember { mutableStateOf(false) }
+        var showSettingsOnStart by remember { mutableStateOf(true) }
+
+        LaunchedEffect(key1 = showSettingsOnStart) {
+            if (showSettingsOnStart && viewModel.availableModels.isEmpty()) {
+                showSettingsDialog = true
+                showSettingsOnStart = false
+            }
+        }
 
         // Update model selection when availableModels or currentModel changes
         LaunchedEffect(viewModel.availableModels, viewModel.currentModel) {
@@ -80,11 +89,27 @@ class MainActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Server connection info
-                    Text(
-                        "Server: ${viewModel.serverUrl}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Server: ${viewModel.serverUrl}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.fetchAvailableModels()
+                                viewModel.checkModelStatus()
+                            },
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text("Connect")
+                        }
+                    }
 
                     // Model selector
                     ModelSelector(

@@ -369,13 +369,13 @@ fun SettingsDialog(
     onSave: (String) -> Unit
 ) {
     var tempServerUrl by remember { mutableStateOf(currentServerUrl) }
-    
+
     LaunchedEffect(currentServerUrl, showDialog) {
         if (showDialog) {
             tempServerUrl = currentServerUrl
         }
     }
-    
+
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
@@ -390,6 +390,12 @@ fun SettingsDialog(
                         label = { Text("Server URL") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Note: Clicking 'Save' will attempt to connect to the server.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                 }
             },
             confirmButton = {
@@ -399,7 +405,7 @@ fun SettingsDialog(
                         onDismiss()
                     }
                 ) {
-                    Text("Save")
+                    Text("Save & Connect")
                 }
             },
             dismissButton = {

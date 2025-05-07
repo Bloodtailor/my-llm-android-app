@@ -17,7 +17,7 @@ class LlmRepository(
     // Shared preferences name and keys
     private val PREFS_NAME = "LLMAppPreferences"
     private val SERVER_URL_KEY = "server_url"
-    private val DEFAULT_SERVER_URL = "http://192.168.1.100:5000"
+    private val DEFAULT_SERVER_URL = "http://192.168.50.220:5000"
     
     // Initialize API service
     private var apiService = ApiService(serverUrl)
