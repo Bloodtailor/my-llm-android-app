@@ -17,11 +17,15 @@ class ApiService(private val serverBaseUrl: String) {
         .writeTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)  // Increased timeout for streaming
         .build()
-    
+
+
     /**
-     * Fetch available models from the server
+     * Fetch available models from the server with enhanced logging
      */
     suspend fun fetchModels(): Result<List<String>> {
+        val tag = "ApiService"
+        android.util.Log.d(tag, "Fetching models from: $serverBaseUrl/models")
+
         return try {
             val request = Request.Builder()
                 .url("$serverBaseUrl/models")
@@ -31,19 +35,30 @@ class ApiService(private val serverBaseUrl: String) {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val responseBody = response.body?.string() ?: "{}"
-                    val jsonResponse = JSONObject(responseBody)
-                    val models = jsonResponse.getJSONArray("models")
+                    android.util.Log.d(tag, "Response body: $responseBody")
 
-                    val modelsList = mutableListOf<String>()
-                    for (i in 0 until models.length()) {
-                        modelsList.add(models.getString(i))
+                    try {
+                        val jsonResponse = JSONObject(responseBody)
+                        val models = jsonResponse.getJSONArray("models")
+
+                        val modelsList = mutableListOf<String>()
+                        for (i in 0 until models.length()) {
+                            modelsList.add(models.getString(i))
+                        }
+
+                        android.util.Log.d(tag, "Parsed ${modelsList.size} models: ${modelsList.joinToString()}")
+                        Result.success(modelsList)
+                    } catch (e: Exception) {
+                        android.util.Log.e(tag, "Error parsing JSON response", e)
+                        Result.failure(Exception("Failed to parse models: ${e.message}"))
                     }
-                    Result.success(modelsList)
                 } else {
+                    android.util.Log.w(tag, "Server returned error: ${response.code} - ${response.message}")
                     Result.failure(Exception("Failed to fetch models: ${response.code}"))
                 }
             }
         } catch (e: Exception) {
+            android.util.Log.e(tag, "Network error fetching models", e)
             Result.failure(e)
         }
     }
