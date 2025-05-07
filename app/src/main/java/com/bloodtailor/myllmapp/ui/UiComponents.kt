@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
+import androidx.compose.ui.unit.sp
 
 /**
  * Model selection dropdown component
@@ -187,10 +188,10 @@ fun PromptInput(
     onFormattedPromptUpdated: (String) -> Unit
 ) {
     Column {
-        // Prompt input field
-        TextField(
+        // Prompt input field with scroll
+        OutlinedTextField(
             value = prompt,
-            onValueChange = { newPrompt -> 
+            onValueChange = { newPrompt ->
                 onPromptChanged(newPrompt)
                 // Update formatted prompt preview if needed
                 if (viewModel.currentModelLoaded && showFormattedPrompt) {
@@ -202,9 +203,11 @@ fun PromptInput(
             label = { Text("Enter your prompt") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .heightIn(min = 120.dp, max = 200.dp), // Set min and max height
+            textStyle = LocalTextStyle.current.copy(lineHeight = 20.sp),
+            maxLines = 10, // Allow more lines
         )
-        
+
         // Formatted prompt toggle
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -224,8 +227,8 @@ fun PromptInput(
             )
             Text("Show formatted prompt")
         }
-        
-        // Formatted prompt preview
+
+        // Formatted prompt preview with better scrolling
         if (showFormattedPrompt) {
             Card(
                 modifier = Modifier
@@ -235,18 +238,25 @@ fun PromptInput(
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("Formatted Prompt:", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    SelectionContainer {
-                        Text(
-                            text = formattedPrompt,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Color(0xFFF5F5F5),
-                                    shape = RoundedCornerShape(4.dp)
-                                )
-                                .padding(8.dp)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp, max = 200.dp) // Limit height
+                            .background(
+                                Color(0xFFF5F5F5),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(8.dp)
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = formattedPrompt,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState()) // Add vertical scroll
+                            )
+                        }
                     }
                 }
             }
@@ -293,13 +303,19 @@ fun ResponseDisplay(
     isLoading: Boolean
 ) {
     val context = LocalContext.current
-    
-    Box(
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight(1f)  // Replace weight with fillMaxHeight
+            .fillMaxHeight()  // Use fillMaxHeight instead of weight
             .padding(vertical = 8.dp)
     ) {
+        Text(
+            text = "Response:",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+
         Card(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -308,27 +324,33 @@ fun ResponseDisplay(
                     .fillMaxSize()
                     .padding(2.dp)
             ) {
-                // Response text with selection support
-                SelectionContainer(
+                // Response text with selection support and better scrolling
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 48.dp)
+                        .padding(bottom = 48.dp) // Leave space for the button
                 ) {
-                    Text(
-                        text = response,
+                    SelectionContainer(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                    )
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = response,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
                 }
-                
+
                 // Copy button at the bottom right
                 FloatingActionButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("LLM Response", response)
                         clipboard.setPrimaryClip(clip)
-                        
+
                         // Show toast notification
                         Toast.makeText(context, "Response copied to clipboard", Toast.LENGTH_SHORT).show()
                     },
@@ -346,14 +368,14 @@ fun ResponseDisplay(
                 }
             }
         }
-    }
-    
-    if (isLoading) {
-        LinearProgressIndicator(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        )
+
+        if (isLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            )
+        }
     }
 }
 
@@ -413,6 +435,144 @@ fun SettingsDialog(
                     onClick = onDismiss
                 ) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModelSettingsDialog(
+    showDialog: Boolean,
+    viewModel: LlmViewModel,
+    onDismiss: () -> Unit
+) {
+    var selectedModel by remember { mutableStateOf(viewModel.currentModel ?: "") }
+    var contextLengthInput by remember { mutableStateOf(viewModel.currentContextLength?.toString() ?: "") }
+
+    // Update selected model when viewModel.availableModels or viewModel.currentModel changes
+    LaunchedEffect(viewModel.availableModels, viewModel.currentModel) {
+        if (viewModel.availableModels.isNotEmpty() && selectedModel.isEmpty()) {
+            selectedModel = viewModel.availableModels.first()
+        }
+        if (viewModel.currentModel != null) {
+            selectedModel = viewModel.currentModel!!
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Model Settings") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Model selector
+                    Text("Select Model:", style = MaterialTheme.typography.labelLarge)
+                    ExposedDropdownMenuBox(
+                        expanded = false, // We'll handle this separately
+                        onExpandedChange = { /* Handle separately */ }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedModel,
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = false)
+                            },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+
+                        DropdownMenu(
+                            expanded = false, // We'll handle this separately
+                            onDismissRequest = {}
+                        ) {
+                            viewModel.availableModels.forEach { model ->
+                                DropdownMenuItem(
+                                    text = { Text(model) },
+                                    onClick = { selectedModel = model }
+                                )
+                            }
+                        }
+                    }
+
+                    // Context length
+                    Text("Context Length:", style = MaterialTheme.typography.labelLarge)
+                    OutlinedTextField(
+                        value = contextLengthInput,
+                        onValueChange = {
+                            // Only allow numeric input
+                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                contextLengthInput = it
+                            }
+                        },
+                        label = { Text("Context Length") },
+                        placeholder = { Text("Default: ${viewModel.DEFAULT_CONTEXT_LENGTH}") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Model status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Status: ${if (viewModel.currentModelLoaded) "Loaded" else "Not Loaded"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (viewModel.currentModelLoaded) {
+                            Text(
+                                "Current: ${viewModel.currentModel}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(
+                        onClick = {
+                            // Parse context length if provided
+                            val contextLength = contextLengthInput.toIntOrNull()
+                            viewModel.loadModel(selectedModel, contextLength)
+                            onDismiss()
+                        },
+                        enabled = !viewModel.isLoading &&
+                                (!viewModel.currentModelLoaded ||
+                                        (viewModel.currentModel != selectedModel) ||
+                                        (contextLengthInput.toIntOrNull() != viewModel.currentContextLength))
+                    ) {
+                        Text("Load Model")
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.unloadModel()
+                            onDismiss()
+                        },
+                        enabled = !viewModel.isLoading && viewModel.currentModelLoaded
+                    ) {
+                        Text("Unload Model")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
                 }
             }
         )
