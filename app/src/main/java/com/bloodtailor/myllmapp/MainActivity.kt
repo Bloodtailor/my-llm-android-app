@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,8 +27,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize ViewModel
+        // Get application's repository instance
+        val repository = (application as LlmApplication).repository
+
+        // Initialize ViewModel with the repository's URL
         viewModel = ViewModelProvider(this).get(LlmViewModel::class.java)
+
+        // Update the view model with the current URL from repository
+        viewModel.updateServerUrl(repository.getServerUrl(), true)
 
         setContent {
             LLMAppUI()
@@ -58,6 +65,11 @@ class MainActivity : ComponentActivity() {
                 showSettingsDialog = true
                 showSettingsOnStart = false
             }
+        }
+
+        // Debugging composable effect
+        LaunchedEffect(viewModel.availableModels) {
+            android.util.Log.d("MainActivity", "Observed models change: ${viewModel.availableModels}")
         }
 
         MaterialTheme {

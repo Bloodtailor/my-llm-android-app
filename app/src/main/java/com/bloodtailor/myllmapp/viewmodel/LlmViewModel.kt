@@ -58,8 +58,12 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         repository.updateServerUrl(url)
         serverUrl = url
 
+        // Add logging
+        android.util.Log.d("LlmViewModel", "Server URL updated to: $url")
+
         // Only refresh data if autoConnect is true
         if (autoConnect) {
+            statusMessage = "Connecting to server..."
             fetchAvailableModels()
             checkModelStatus()
         }
@@ -71,17 +75,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     fun fetchAvailableModels() {
         viewModelScope.launch {
             isLoading = true
-            
+            statusMessage = "Loading models..."
+
             repository.getAvailableModels().fold(
                 onSuccess = { models ->
                     availableModels.clear()
                     availableModels.addAll(models)
+
+                    if (models.isEmpty()) {
+                        statusMessage = "No models found. Please check server configuration."
+                        android.util.Log.w("LlmViewModel", "No models returned from server")
+                    } else {
+                        statusMessage = "${models.size} models loaded"
+                        android.util.Log.d("LlmViewModel", "Models loaded: ${models.joinToString()}")
+                    }
                 },
                 onFailure = { error ->
                     statusMessage = "Error loading models: ${error.message}"
+                    android.util.Log.e("LlmViewModel", "Error loading models", error)
                 }
             )
-            
+
             isLoading = false
         }
     }
@@ -96,8 +110,15 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     currentModelLoaded = status.loaded
                     currentModel = status.currentModel
                     currentContextLength = status.contextLength
+
+                    // Clear status message if connected
+                    if (statusMessage == "Please configure server address in settings" ||
+                        statusMessage == "Connecting to server...") {
+                        statusMessage = ""
+                    }
                 },
                 onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error checking model status", error)
                     statusMessage = "Error checking model status: ${error.message}"
                 }
             )

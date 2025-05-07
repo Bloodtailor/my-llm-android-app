@@ -53,7 +53,19 @@ class LlmRepository(
      * Fetch available models from the server
      */
     suspend fun getAvailableModels(): Result<List<String>> = withContext(Dispatchers.IO) {
-        apiService.fetchModels()
+        android.util.Log.d("LlmRepository", "Fetching models from $serverUrl")
+        val result = apiService.fetchModels()
+
+        result.fold(
+            onSuccess = { models ->
+                android.util.Log.d("LlmRepository", "Successfully fetched ${models.size} models: ${models.joinToString()}")
+            },
+            onFailure = { error ->
+                android.util.Log.e("LlmRepository", "Failed to fetch models", error)
+            }
+        )
+
+        return@withContext result
     }
     
     /**
@@ -85,7 +97,34 @@ class LlmRepository(
         withContext(Dispatchers.IO) {
             apiService.formatPrompt(prompt, modelName)
         }
-    
+    /**
+     * Debugging method to check server connectivity
+     */
+    suspend fun checkServerConnectivity(): Result<Boolean> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
+
+            val request = okhttp3.Request.Builder()
+                .url("$serverUrl/server/ping")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    android.util.Log.d("LlmRepository", "Server ping successful")
+                    Result.success(true)
+                } else {
+                    android.util.Log.w("LlmRepository", "Server ping failed with code: ${response.code}")
+                    Result.success(false)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LlmRepository", "Server ping error", e)
+            Result.failure(e)
+        }
+    }
+
     /**
      * Send a streaming prompt to the server
      * Note: This function doesn't use Dispatchers.IO as the ApiService

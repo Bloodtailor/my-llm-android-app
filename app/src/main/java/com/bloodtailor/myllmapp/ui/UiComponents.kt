@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -448,17 +449,26 @@ fun ModelSettingsDialog(
     viewModel: LlmViewModel,
     onDismiss: () -> Unit
 ) {
-    var selectedModel by remember { mutableStateOf(viewModel.currentModel ?: "") }
-    var contextLengthInput by remember { mutableStateOf(viewModel.currentContextLength?.toString() ?: "") }
+    // State variables
+    var selectedModel by remember { mutableStateOf("") }
+    var contextLengthInput by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) } // Add this for the dropdown
 
-    // Update selected model when viewModel.availableModels or viewModel.currentModel changes
-    LaunchedEffect(viewModel.availableModels, viewModel.currentModel) {
-        if (viewModel.availableModels.isNotEmpty() && selectedModel.isEmpty()) {
-            selectedModel = viewModel.availableModels.first()
+    // Update selectedModel when viewModel values change
+    LaunchedEffect(viewModel.availableModels, viewModel.currentModel, showDialog) {
+        if (showDialog) {
+            // Initialize with current model if available, otherwise first available model
+            selectedModel = viewModel.currentModel ?:
+                    if (viewModel.availableModels.isNotEmpty()) viewModel.availableModels[0] else ""
+
+            // Initialize context length input with current context length
+            contextLengthInput = viewModel.currentContextLength?.toString() ?: ""
         }
-        if (viewModel.currentModel != null) {
-            selectedModel = viewModel.currentModel!!
-        }
+    }
+
+    // Debug log available models - you can remove this later
+    LaunchedEffect(viewModel.availableModels) {
+        android.util.Log.d("ModelSettingsDialog", "Available models: ${viewModel.availableModels.joinToString()}")
     }
 
     if (showDialog) {
@@ -474,31 +484,46 @@ fun ModelSettingsDialog(
                 ) {
                     // Model selector
                     Text("Select Model:", style = MaterialTheme.typography.labelLarge)
-                    ExposedDropdownMenuBox(
-                        expanded = false, // We'll handle this separately
-                        onExpandedChange = { /* Handle separately */ }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedModel,
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = false)
-                            },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                        )
 
-                        DropdownMenu(
-                            expanded = false, // We'll handle this separately
-                            onDismissRequest = {}
+                    // Show a message if no models are available
+                    if (viewModel.availableModels.isEmpty()) {
+                        Text(
+                            "No models available. Please check server connection.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        // Dropdown for model selection
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded }
                         ) {
-                            viewModel.availableModels.forEach { model ->
-                                DropdownMenuItem(
-                                    text = { Text(model) },
-                                    onClick = { selectedModel = model }
-                                )
+                            OutlinedTextField(
+                                value = selectedModel,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Model") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                viewModel.availableModels.forEach { model ->
+                                    DropdownMenuItem(
+                                        text = { Text(model) },
+                                        onClick = {
+                                            selectedModel = model
+                                            expanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -519,23 +544,51 @@ fun ModelSettingsDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Model status
-                    Row(
+                    // Model status display
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Status: ${if (viewModel.currentModelLoaded) "Loaded" else "Not Loaded"}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
-
-                        if (viewModel.currentModelLoaded) {
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Text(
-                                "Current: ${viewModel.currentModel}",
-                                style = MaterialTheme.typography.bodySmall
+                                "Current Status",
+                                style = MaterialTheme.typography.labelMedium
                             )
+                            Text(
+                                "Status: ${if (viewModel.currentModelLoaded) "Loaded" else "Not Loaded"}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (viewModel.currentModelLoaded && viewModel.currentModel != null) {
+                                Text(
+                                    "Current Model: ${viewModel.currentModel}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                if (viewModel.currentContextLength != null) {
+                                    Text(
+                                        "Context Length: ${viewModel.currentContextLength}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
                         }
+                    }
+
+                    // Refresh button to fetch models
+                    Button(
+                        onClick = { viewModel.fetchAvailableModels() },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Models"
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Refresh Models")
                     }
                 }
             },
@@ -551,7 +604,7 @@ fun ModelSettingsDialog(
                             viewModel.loadModel(selectedModel, contextLength)
                             onDismiss()
                         },
-                        enabled = !viewModel.isLoading &&
+                        enabled = selectedModel.isNotEmpty() &&
                                 (!viewModel.currentModelLoaded ||
                                         (viewModel.currentModel != selectedModel) ||
                                         (contextLengthInput.toIntOrNull() != viewModel.currentContextLength))
@@ -564,7 +617,7 @@ fun ModelSettingsDialog(
                             viewModel.unloadModel()
                             onDismiss()
                         },
-                        enabled = !viewModel.isLoading && viewModel.currentModelLoaded
+                        enabled = viewModel.currentModelLoaded
                     ) {
                         Text("Unload Model")
                     }
