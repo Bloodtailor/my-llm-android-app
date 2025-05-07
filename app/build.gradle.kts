@@ -62,4 +62,7 @@ dependencies {
 
     // For networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // For Material Icons
+    implementation("androidx.compose.material:material-icons-extended")
 }

@@ -297,7 +297,7 @@ fun ResponseDisplay(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f)
+            .fillMaxHeight(1f)  // Replace weight with fillMaxHeight
             .padding(vertical = 8.dp)
     ) {
         Card(
