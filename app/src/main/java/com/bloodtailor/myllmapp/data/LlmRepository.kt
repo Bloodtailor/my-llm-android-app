@@ -5,7 +5,7 @@ import com.bloodtailor.myllmapp.network.ApiService
 import com.bloodtailor.myllmapp.network.ModelLoadResult
 import com.bloodtailor.myllmapp.network.ModelStatus
 import com.bloodtailor.myllmapp.network.ContextUsage
-import com.bloodtailor.myllmapp.network.PromptFormatResult
+import com.bloodtailor.myllmapp.network.TokenCountResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,24 +20,24 @@ class LlmRepository(
     private val PREFS_NAME = "LLMAppPreferences"
     private val SERVER_URL_KEY = "server_url"
     private val DEFAULT_SERVER_URL = "http://192.168.50.220:5000"
-    
+
     // Initialize API service
     private var apiService = ApiService(serverUrl)
-    
+
     init {
         // Load saved server URL from preferences
         val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         serverUrl = sharedPref.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         apiService = ApiService(serverUrl)
     }
-    
+
     /**
      * Update the server URL and save it to preferences
      */
     fun updateServerUrl(url: String) {
         serverUrl = url
         apiService = ApiService(url)
-        
+
         // Save to preferences
         val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
@@ -45,12 +45,12 @@ class LlmRepository(
             apply()
         }
     }
-    
+
     /**
      * Get the current server URL
      */
     fun getServerUrl(): String = serverUrl
-    
+
     /**
      * Fetch available models from the server
      */
@@ -69,22 +69,22 @@ class LlmRepository(
 
         return@withContext result
     }
-    
+
     /**
      * Check the current model status
      */
     suspend fun checkModelStatus(): Result<ModelStatus> = withContext(Dispatchers.IO) {
         apiService.checkModelStatus()
     }
-    
+
     /**
      * Load a model on the server
      */
-    suspend fun loadModel(modelName: String, contextLength: Int? = null): Result<ModelLoadResult> = 
+    suspend fun loadModel(modelName: String, contextLength: Int? = null): Result<ModelLoadResult> =
         withContext(Dispatchers.IO) {
             apiService.loadModel(modelName, contextLength)
         }
-    
+
     /**
      * Unload the current model
      */
@@ -93,11 +93,11 @@ class LlmRepository(
     }
 
     /**
-     * Format a prompt using the server's template and get context usage
+     * Count tokens in text and get context usage (replaces formatPrompt)
      */
-    suspend fun formatPrompt(prompt: String, modelName: String): Result<PromptFormatResult> =
+    suspend fun countTokens(text: String, modelName: String): Result<TokenCountResult> =
         withContext(Dispatchers.IO) {
-            apiService.formatPrompt(prompt, modelName)
+            apiService.countTokens(text, modelName)
         }
 
     /**
@@ -129,21 +129,20 @@ class LlmRepository(
     }
 
     /**
-     * Send a streaming prompt to the server
+     * Send a streaming prompt to the server (now sends raw prompts)
      * Note: This function doesn't use Dispatchers.IO as the ApiService
      * handles threading with OkHttp callback
      */
     fun sendStreamingPrompt(
         prompt: String,
         systemPrompt: String = "",
-        formattedPrompt: String? = null,
         modelName: String,
         callback: (status: String, content: String) -> Unit
     ) {
+        // Remove formattedPrompt parameter - we're sending raw prompts now
         apiService.sendStreamingPrompt(
             prompt = prompt,
             systemPrompt = systemPrompt,
-            formattedPromptOverride = formattedPrompt,
             modelName = modelName,
             callback = callback
         )

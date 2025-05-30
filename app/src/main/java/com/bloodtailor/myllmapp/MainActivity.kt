@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Prompt input with formatted preview
+                    // Prompt input with raw prompt preview and context usage
                     PromptInput(
                         prompt = prompt,
                         onPromptChanged = { prompt = it },
@@ -158,11 +158,10 @@ class MainActivity : ComponentActivity() {
                         onFormattedPromptUpdated = { localFormattedPrompt = it }
                     )
 
-                    // Send button
+                    // Send button - simplified to always send raw prompts
                     SendButton(
                         viewModel = viewModel,
-                        prompt = prompt,
-                        useFormattedPrompt = showFormattedPrompt
+                        prompt = prompt
                     )
 
                     // Response display - ensure this is in a layout that supports weight
