@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
  * Service for handling all API communication with the LLM server
  */
 class ApiService(private val serverBaseUrl: String) {
-    
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
@@ -62,7 +62,7 @@ class ApiService(private val serverBaseUrl: String) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Check the current model status on the server
      */
@@ -80,10 +80,10 @@ class ApiService(private val serverBaseUrl: String) {
 
                     val modelStatus = ModelStatus(
                         loaded = jsonResponse.getBoolean("loaded"),
-                        currentModel = if (jsonResponse.isNull("current_model")) null 
-                            else jsonResponse.getString("current_model"),
-                        contextLength = if (jsonResponse.isNull("context_length")) null 
-                            else jsonResponse.getInt("context_length")
+                        currentModel = if (jsonResponse.isNull("current_model")) null
+                        else jsonResponse.getString("current_model"),
+                        contextLength = if (jsonResponse.isNull("context_length")) null
+                        else jsonResponse.getInt("context_length")
                     )
                     Result.success(modelStatus)
                 } else {
@@ -94,7 +94,7 @@ class ApiService(private val serverBaseUrl: String) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Load a model on the server
      */
@@ -122,9 +122,9 @@ class ApiService(private val serverBaseUrl: String) {
 
                     val result = ModelLoadResult(
                         model = modelName,
-                        contextLength = if (jsonResponse.has("context_length")) 
-                            jsonResponse.getInt("context_length") 
-                        else 
+                        contextLength = if (jsonResponse.has("context_length"))
+                            jsonResponse.getInt("context_length")
+                        else
                             contextLength,
                         message = jsonResponse.optString("message", "Model loaded successfully")
                     )
@@ -137,7 +137,7 @@ class ApiService(private val serverBaseUrl: String) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Unload the current model on the server
      */
@@ -163,19 +163,19 @@ class ApiService(private val serverBaseUrl: String) {
     }
 
     /**
-     * Format a prompt using the server's template and get context usage
+     * Count tokens in text and get context usage (replaces formatPrompt)
      */
-    suspend fun formatPrompt(prompt: String, modelName: String): Result<PromptFormatResult> {
+    suspend fun countTokens(text: String, modelName: String): Result<TokenCountResult> {
         return try {
             val jsonObject = JSONObject()
-            jsonObject.put("prompt", prompt)
+            jsonObject.put("text", text)
             jsonObject.put("model", modelName)
 
             val mediaType = "application/json; charset=utf-8".toMediaType()
             val requestBody = jsonObject.toString().toRequestBody(mediaType)
 
             val request = Request.Builder()
-                .url("$serverBaseUrl/format_prompt")
+                .url("$serverBaseUrl/count_tokens")
                 .post(requestBody)
                 .build()
 
@@ -184,7 +184,6 @@ class ApiService(private val serverBaseUrl: String) {
                     val responseBody = response.body?.string() ?: "{}"
                     val jsonResponse = JSONObject(responseBody)
 
-                    val formatted = jsonResponse.optString("formatted_prompt", "")
                     val model = jsonResponse.optString("model", modelName)
 
                     // Parse context usage if available
@@ -198,15 +197,15 @@ class ApiService(private val serverBaseUrl: String) {
                         )
                     } else null
 
-                    val result = PromptFormatResult(
-                        formattedPrompt = formatted,
+                    val result = TokenCountResult(
+                        text = text,
                         model = model,
                         contextUsage = contextUsage
                     )
 
                     Result.success(result)
                 } else {
-                    Result.failure(Exception("Failed to format prompt: ${response.code}"))
+                    Result.failure(Exception("Failed to count tokens: ${response.code}"))
                 }
             }
         } catch (e: Exception) {
@@ -216,27 +215,22 @@ class ApiService(private val serverBaseUrl: String) {
 
     /**
      * Send a streaming prompt to the server with a callback for processing chunks
+     * Now sends raw prompts without any formatting
      */
     fun sendStreamingPrompt(
-        prompt: String, 
-        systemPrompt: String = "", 
-        formattedPromptOverride: String? = null,
+        prompt: String,
+        systemPrompt: String = "",
         modelName: String,
         callback: (status: String, content: String) -> Unit
     ) {
         try {
-            // Create JSON request
+            // Create JSON request - removed formatted_prompt parameter
             val jsonObject = JSONObject()
-            jsonObject.put("prompt", prompt)
+            jsonObject.put("prompt", prompt)  // Send raw prompt exactly as typed
             jsonObject.put("system_prompt", systemPrompt)
             jsonObject.put("model", modelName)
             jsonObject.put("stream", true)
-            
-            // Add formatted prompt if provided
-            if (formattedPromptOverride != null) {
-                jsonObject.put("formatted_prompt", formattedPromptOverride)
-            }
-            
+
             val jsonRequest = jsonObject.toString()
 
             // Prepare the request
@@ -346,10 +340,10 @@ data class ContextUsage(
 )
 
 /**
- * Data class representing the result of formatting a prompt
+ * Data class representing the result of counting tokens (replaces PromptFormatResult)
  */
-data class PromptFormatResult(
-    val formattedPrompt: String,
+data class TokenCountResult(
+    val text: String,
     val model: String,
     val contextUsage: ContextUsage?
 )

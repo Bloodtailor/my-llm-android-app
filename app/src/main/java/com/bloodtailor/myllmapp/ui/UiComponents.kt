@@ -46,7 +46,7 @@ fun ModelSelector(
     onModelSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -66,8 +66,8 @@ fun ModelSelector(
                     onValueChange = {},
                     readOnly = true,
                     enabled = enabled,
-                    trailingIcon = { 
-                        if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) 
+                    trailingIcon = {
+                        if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
                     modifier = Modifier
                         .menuAnchor()
@@ -112,10 +112,10 @@ fun ContextLengthInput(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("Context:", modifier = Modifier.width(80.dp))
-        
+
         OutlinedTextField(
             value = contextLength,
-            onValueChange = { 
+            onValueChange = {
                 // Only allow numeric input
                 if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                     onContextLengthChanged(it)
@@ -150,20 +150,23 @@ fun ModelControlButtons(
             onClick = {
                 // Parse context length if provided
                 val contextLength = contextLengthInput.toIntOrNull()
-                
+
                 viewModel.loadModel(selectedModel, contextLength) { success ->
-                    // Get formatted prompt example if successful
-                    if (success && prompt.isNotEmpty() && showFormattedPrompt) {
-                        viewModel.formatPrompt(prompt) { formatted ->
-                            onFormattedPromptUpdated(formatted)
+                    // Update context usage if prompt exists and checkbox is checked
+                    if (success && prompt.isNotEmpty()) {
+                        viewModel.updateContextUsage(prompt) { rawPrompt ->
+                            // For "show formatted prompt", we just show the raw prompt now
+                            if (showFormattedPrompt) {
+                                onFormattedPromptUpdated(rawPrompt)
+                            }
                         }
                     }
                 }
             },
-            enabled = !viewModel.isLoading && 
-                (!viewModel.currentModelLoaded || 
-                 (viewModel.currentModel != selectedModel) || 
-                 (contextLengthInput.toIntOrNull() != viewModel.currentContextLength)),
+            enabled = !viewModel.isLoading &&
+                    (!viewModel.currentModelLoaded ||
+                            (viewModel.currentModel != selectedModel) ||
+                            (contextLengthInput.toIntOrNull() != viewModel.currentContextLength)),
             modifier = Modifier.weight(1f)
         ) {
             Text("Load Model")
@@ -182,7 +185,7 @@ fun ModelControlButtons(
 }
 
 /**
- * Prompt input with formatted preview and context usage component
+ * Prompt input with raw prompt preview and context usage component
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,11 +206,17 @@ fun PromptInput(
                 onPromptChanged(newPrompt)
                 // Always update context usage when model is loaded and prompt is not empty
                 if (viewModel.currentModelLoaded && newPrompt.isNotEmpty()) {
-                    viewModel.formatPrompt(newPrompt) { formatted ->
-                        // Only update the formatted prompt display if the checkbox is checked
+                    viewModel.updateContextUsage(newPrompt) { rawPrompt ->
+                        // Only update the "formatted" prompt display if the checkbox is checked
+                        // Since we're not formatting, this just shows the raw prompt
                         if (showFormattedPrompt) {
-                            onFormattedPromptUpdated(formatted)
+                            onFormattedPromptUpdated(rawPrompt)
                         }
+                    }
+                } else if (newPrompt.isEmpty()) {
+                    // Clear context usage when prompt is empty
+                    if (showFormattedPrompt) {
+                        onFormattedPromptUpdated("")
                     }
                 }
             },
@@ -227,7 +236,7 @@ fun PromptInput(
             )
         }
 
-        // Formatted prompt toggle
+        // "Show formatted prompt" toggle - now shows raw prompt copy
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
@@ -238,16 +247,17 @@ fun PromptInput(
                 onCheckedChange = { checked ->
                     onShowFormattedPromptChanged(checked)
                     if (checked && prompt.isNotEmpty() && viewModel.currentModelLoaded) {
-                        viewModel.formatPrompt(prompt) { formatted ->
-                            onFormattedPromptUpdated(formatted)
+                        // Just show the raw prompt as "formatted" prompt
+                        viewModel.updateContextUsage(prompt) { rawPrompt ->
+                            onFormattedPromptUpdated(rawPrompt)
                         }
                     }
                 }
             )
-            Text("Show formatted prompt")
+            Text("Show formatted prompt (currently shows raw prompt)")
         }
 
-        // Formatted prompt preview with better scrolling
+        // Formatted prompt preview - now shows raw prompt copy
         if (showFormattedPrompt) {
             Card(
                 modifier = Modifier
@@ -255,7 +265,7 @@ fun PromptInput(
                     .padding(vertical = 8.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Formatted Prompt:", style = MaterialTheme.typography.labelMedium)
+                    Text("Prompt sent to model:", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
@@ -269,11 +279,15 @@ fun PromptInput(
                     ) {
                         SelectionContainer {
                             Text(
-                                text = formattedPrompt,
+                                text = formattedPrompt.ifEmpty { "Type a prompt above to see what will be sent to the model..." },
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState())
+                                    .verticalScroll(rememberScrollState()),
+                                color = if (formattedPrompt.isEmpty())
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                else
+                                    MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -284,13 +298,13 @@ fun PromptInput(
 }
 
 /**
- * Send button component
+ * Send button component - simplified without useFormattedPrompt
  */
 @Composable
 fun SendButton(
     viewModel: LlmViewModel,
     prompt: String,
-    useFormattedPrompt: Boolean
+    useFormattedPrompt: Boolean = false  // Keep parameter for compatibility but ignore it
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -298,15 +312,15 @@ fun SendButton(
     ) {
         Button(
             onClick = {
+                // Always send the raw prompt now
                 viewModel.sendPrompt(
                     prompt = prompt,
-                    systemPrompt = "", // Not using system prompts for now
-                    useFormattedPrompt = useFormattedPrompt
+                    systemPrompt = "" // Not using system prompts for now
                 )
             },
-            enabled = !viewModel.isLoading && 
-                prompt.isNotEmpty() && 
-                viewModel.currentModelLoaded
+            enabled = !viewModel.isLoading &&
+                    prompt.isNotEmpty() &&
+                    viewModel.currentModelLoaded
         ) {
             Text("Send")
         }

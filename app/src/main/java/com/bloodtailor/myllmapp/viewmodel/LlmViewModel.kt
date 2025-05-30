@@ -12,21 +12,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bloodtailor.myllmapp.network.ContextUsage
-import com.bloodtailor.myllmapp.network.PromptFormatResult
 
 
 /**
  * ViewModel for managing LLM-related state and operations
  */
 class LlmViewModel(application: Application) : AndroidViewModel(application) {
-    
+
     // Repository for data operations
     private val repository = LlmRepository(application, "")
-    
+
     // Server state
     var serverUrl by mutableStateOf(repository.getServerUrl())
         private set
-    
+
     // Model state
     var availableModels = mutableStateListOf<String>()
         private set
@@ -36,21 +35,19 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var currentContextLength by mutableStateOf<Int?>(null)
         private set
-    
+
     // UI state
     var isLoading by mutableStateOf(false)
         private set
     var statusMessage by mutableStateOf("Please configure server address in settings")
         private set
-    var formattedPrompt by mutableStateOf<String?>(null)
-        private set
     var llmResponse by mutableStateOf("Response will appear here...")
         private set
-    
+
     // Default values
     val DEFAULT_CONTEXT_LENGTH = 2048
 
-    // Context usage state
+    // Context usage state - now separate from formatting
     var contextUsage by mutableStateOf<ContextUsage?>(null)
         private set
 
@@ -75,7 +72,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             checkModelStatus()
         }
     }
-    
+
     /**
      * Fetch available models from the server
      */
@@ -106,7 +103,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             isLoading = false
         }
     }
-    
+
     /**
      * Check the current model status
      */
@@ -131,7 +128,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }
-    
+
     /**
      * Load a model
      */
@@ -139,7 +136,7 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             statusMessage = "Loading model..."
-            
+
             repository.loadModel(modelName, contextLength).fold(
                 onSuccess = { result ->
                     currentModelLoaded = true
@@ -153,11 +150,11 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     onComplete?.invoke(false)
                 }
             )
-            
+
             isLoading = false
         }
     }
-    
+
     /**
      * Unload the current model
      */
@@ -165,13 +162,14 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             statusMessage = "Unloading model..."
-            
+
             repository.unloadModel().fold(
                 onSuccess = { message ->
                     currentModelLoaded = false
                     currentModel = null
                     currentContextLength = null
                     statusMessage = message
+                    contextUsage = null  // Clear context usage when unloading
                     onComplete?.invoke(true)
                 },
                 onFailure = { error ->
@@ -179,26 +177,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     onComplete?.invoke(false)
                 }
             )
-            
+
             isLoading = false
         }
     }
 
     /**
-     * Format a prompt using the current model's template and update context usage
+     * Count tokens in text and update context usage (replaces formatPrompt)
      */
-    fun formatPrompt(prompt: String, onComplete: ((String) -> Unit)? = null) {
+    fun updateContextUsage(text: String, onComplete: ((String) -> Unit)? = null) {
         if (currentModel == null) {
             onComplete?.invoke("No model selected")
             return
         }
 
         viewModelScope.launch {
-            repository.formatPrompt(prompt, currentModel!!).fold(
+            repository.countTokens(text, currentModel!!).fold(
                 onSuccess = { result ->
-                    formattedPrompt = result.formattedPrompt
                     contextUsage = result.contextUsage
-                    onComplete?.invoke(result.formattedPrompt)
+                    // For the "show formatted prompt" feature, we just return the original text
+                    // since we're not doing any formatting now
+                    onComplete?.invoke(result.text)
                 },
                 onFailure = { error ->
                     onComplete?.invoke("Error: ${error.message}")
@@ -207,30 +206,27 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }
-    
+
     /**
      * Send a prompt to the model and get a streaming response
+     * Now sends raw prompts without any formatting
      */
     fun sendPrompt(
         prompt: String,
-        systemPrompt: String = "",
-        useFormattedPrompt: Boolean = false
+        systemPrompt: String = ""
     ) {
         if (!currentModelLoaded || currentModel == null) {
             statusMessage = "Please load a model first"
             return
         }
-        
+
         isLoading = true
         llmResponse = "Generating response..."
-        
-        // Use formatted prompt if requested
-        val formattedPromptToUse = if (useFormattedPrompt) formattedPrompt else null
-        
+
+        // Send the raw prompt exactly as typed by the user
         repository.sendStreamingPrompt(
-            prompt = prompt,
+            prompt = prompt,  // Raw prompt, no formatting
             systemPrompt = systemPrompt,
-            formattedPrompt = formattedPromptToUse,
             modelName = currentModel!!
         ) { status, content ->
             viewModelScope.launch(Dispatchers.Main) {
@@ -238,21 +234,21 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
                     "generating", "complete" -> llmResponse = content
                     "error" -> llmResponse = "Error: $content"
                 }
-                
+
                 if (status == "complete" || status == "error") {
                     isLoading = false
                 }
             }
         }
     }
-    
+
     /**
      * Clear the current response
      */
     fun clearResponse() {
         llmResponse = "Response will appear here..."
     }
-    
+
     /**
      * Clear the status message
      */
