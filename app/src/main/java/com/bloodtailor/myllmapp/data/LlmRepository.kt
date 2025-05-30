@@ -4,6 +4,8 @@ import android.content.Context
 import com.bloodtailor.myllmapp.network.ApiService
 import com.bloodtailor.myllmapp.network.ModelLoadResult
 import com.bloodtailor.myllmapp.network.ModelStatus
+import com.bloodtailor.myllmapp.network.ContextUsage
+import com.bloodtailor.myllmapp.network.PromptFormatResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -89,14 +91,15 @@ class LlmRepository(
     suspend fun unloadModel(): Result<String> = withContext(Dispatchers.IO) {
         apiService.unloadModel()
     }
-    
+
     /**
-     * Format a prompt using the server's template
+     * Format a prompt using the server's template and get context usage
      */
-    suspend fun formatPrompt(prompt: String, modelName: String): Result<String> = 
+    suspend fun formatPrompt(prompt: String, modelName: String): Result<PromptFormatResult> =
         withContext(Dispatchers.IO) {
             apiService.formatPrompt(prompt, modelName)
         }
+
     /**
      * Debugging method to check server connectivity
      */
