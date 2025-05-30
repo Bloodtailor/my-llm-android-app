@@ -161,30 +161,50 @@ class ApiService(private val serverBaseUrl: String) {
             Result.failure(e)
         }
     }
-    
+
     /**
-     * Format a prompt using the server's template
+     * Format a prompt using the server's template and get context usage
      */
-    suspend fun formatPrompt(prompt: String, modelName: String): Result<String> {
+    suspend fun formatPrompt(prompt: String, modelName: String): Result<PromptFormatResult> {
         return try {
             val jsonObject = JSONObject()
             jsonObject.put("prompt", prompt)
             jsonObject.put("model", modelName)
-            
+
             val mediaType = "application/json; charset=utf-8".toMediaType()
             val requestBody = jsonObject.toString().toRequestBody(mediaType)
-            
+
             val request = Request.Builder()
                 .url("$serverBaseUrl/format_prompt")
                 .post(requestBody)
                 .build()
-            
+
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val responseBody = response.body?.string() ?: "{}"
                     val jsonResponse = JSONObject(responseBody)
+
                     val formatted = jsonResponse.optString("formatted_prompt", "")
-                    Result.success(formatted)
+                    val model = jsonResponse.optString("model", modelName)
+
+                    // Parse context usage if available
+                    val contextUsage = if (jsonResponse.has("context_usage")) {
+                        val usageJson = jsonResponse.getJSONObject("context_usage")
+                        ContextUsage(
+                            tokenCount = usageJson.getInt("token_count"),
+                            maxContext = usageJson.getInt("max_context"),
+                            usagePercentage = usageJson.getDouble("usage_percentage").toFloat(),
+                            remainingTokens = usageJson.getInt("remaining_tokens")
+                        )
+                    } else null
+
+                    val result = PromptFormatResult(
+                        formattedPrompt = formatted,
+                        model = model,
+                        contextUsage = contextUsage
+                    )
+
+                    Result.success(result)
                 } else {
                     Result.failure(Exception("Failed to format prompt: ${response.code}"))
                 }
@@ -193,7 +213,7 @@ class ApiService(private val serverBaseUrl: String) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Send a streaming prompt to the server with a callback for processing chunks
      */
@@ -313,4 +333,23 @@ data class ModelLoadResult(
     val model: String,
     val contextLength: Int?,
     val message: String
+)
+
+/**
+ * Data class representing context usage information
+ */
+data class ContextUsage(
+    val tokenCount: Int,
+    val maxContext: Int,
+    val usagePercentage: Float,
+    val remainingTokens: Int
+)
+
+/**
+ * Data class representing the result of formatting a prompt
+ */
+data class PromptFormatResult(
+    val formattedPrompt: String,
+    val model: String,
+    val contextUsage: ContextUsage?
 )

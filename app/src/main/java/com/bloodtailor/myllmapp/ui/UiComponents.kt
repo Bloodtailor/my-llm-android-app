@@ -26,6 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.sp
+import com.bloodtailor.myllmapp.network.ContextUsage
 
 /**
  * Model selection dropdown component
@@ -175,7 +182,7 @@ fun ModelControlButtons(
 }
 
 /**
- * Prompt input with formatted preview component
+ * Prompt input with formatted preview and context usage component
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -194,20 +201,31 @@ fun PromptInput(
             value = prompt,
             onValueChange = { newPrompt ->
                 onPromptChanged(newPrompt)
-                // Update formatted prompt preview if needed
-                if (viewModel.currentModelLoaded && showFormattedPrompt) {
+                // Always update context usage when model is loaded and prompt is not empty
+                if (viewModel.currentModelLoaded && newPrompt.isNotEmpty()) {
                     viewModel.formatPrompt(newPrompt) { formatted ->
-                        onFormattedPromptUpdated(formatted)
+                        // Only update the formatted prompt display if the checkbox is checked
+                        if (showFormattedPrompt) {
+                            onFormattedPromptUpdated(formatted)
+                        }
                     }
                 }
             },
             label = { Text("Enter your prompt") },
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 120.dp, max = 200.dp), // Set min and max height
+                .heightIn(min = 120.dp, max = 200.dp),
             textStyle = LocalTextStyle.current.copy(lineHeight = 20.sp),
-            maxLines = 10, // Allow more lines
+            maxLines = 10,
         )
+
+        // Context usage display (always show when we have a loaded model and context usage info)
+        if (viewModel.contextUsage != null && viewModel.currentModelLoaded) {
+            Spacer(modifier = Modifier.height(8.dp))
+            ContextUsageDisplay(
+                contextUsage = viewModel.contextUsage
+            )
+        }
 
         // Formatted prompt toggle
         Row(
@@ -242,7 +260,7 @@ fun PromptInput(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 100.dp, max = 200.dp) // Limit height
+                            .heightIn(min = 100.dp, max = 200.dp)
                             .background(
                                 Color(0xFFF5F5F5),
                                 shape = RoundedCornerShape(4.dp)
@@ -255,7 +273,7 @@ fun PromptInput(
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState()) // Add vertical scroll
+                                    .verticalScroll(rememberScrollState())
                             )
                         }
                     }
@@ -643,5 +661,69 @@ fun StatusMessage(message: String) {
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(vertical = 4.dp)
         )
+    }
+}
+
+/**
+ * Context usage display component
+ */
+@Composable
+fun ContextUsageDisplay(
+    contextUsage: ContextUsage?,
+    modifier: Modifier = Modifier
+) {
+    if (contextUsage == null) return
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Context Usage",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "${contextUsage.tokenCount} / ${contextUsage.maxContext} tokens",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "${contextUsage.usagePercentage}%",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    color = when {
+                        contextUsage.usagePercentage < 75 -> MaterialTheme.colorScheme.primary
+                        contextUsage.usagePercentage < 90 -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.error
+                    }
+                )
+
+                // Progress indicator
+                LinearProgressIndicator(
+                    progress = (contextUsage.usagePercentage / 100f).coerceIn(0f, 1f),
+                    modifier = Modifier.width(80.dp),
+                    color = when {
+                        contextUsage.usagePercentage < 75 -> MaterialTheme.colorScheme.primary
+                        contextUsage.usagePercentage < 90 -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.error
+                    }
+                )
+            }
+        }
     }
 }

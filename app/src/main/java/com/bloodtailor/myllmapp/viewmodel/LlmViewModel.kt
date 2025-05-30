@@ -11,6 +11,9 @@ import com.bloodtailor.myllmapp.data.LlmRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import com.bloodtailor.myllmapp.network.ContextUsage
+import com.bloodtailor.myllmapp.network.PromptFormatResult
+
 
 /**
  * ViewModel for managing LLM-related state and operations
@@ -46,6 +49,10 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
     
     // Default values
     val DEFAULT_CONTEXT_LENGTH = 2048
+
+    // Context usage state
+    var contextUsage by mutableStateOf<ContextUsage?>(null)
+        private set
 
 
     init {
@@ -176,24 +183,26 @@ class LlmViewModel(application: Application) : AndroidViewModel(application) {
             isLoading = false
         }
     }
-    
+
     /**
-     * Format a prompt using the current model's template
+     * Format a prompt using the current model's template and update context usage
      */
     fun formatPrompt(prompt: String, onComplete: ((String) -> Unit)? = null) {
         if (currentModel == null) {
             onComplete?.invoke("No model selected")
             return
         }
-        
+
         viewModelScope.launch {
             repository.formatPrompt(prompt, currentModel!!).fold(
-                onSuccess = { formatted ->
-                    formattedPrompt = formatted
-                    onComplete?.invoke(formatted)
+                onSuccess = { result ->
+                    formattedPrompt = result.formattedPrompt
+                    contextUsage = result.contextUsage
+                    onComplete?.invoke(result.formattedPrompt)
                 },
                 onFailure = { error ->
                     onComplete?.invoke("Error: ${error.message}")
+                    contextUsage = null
                 }
             )
         }
