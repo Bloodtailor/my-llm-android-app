@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.sp
 import com.bloodtailor.myllmapp.network.ContextUsage
 
-
 /**
  * Full-screen prompt editor for editing long prompts with navigation controls
  */
@@ -442,12 +441,57 @@ fun PromptInput(
             }
         }
 
-        // Context usage display (always show when we have a loaded model and context usage info)
+        // Context usage display with send button
         if (viewModel.contextUsage != null && viewModel.currentModelLoaded) {
             Spacer(modifier = Modifier.height(8.dp))
-            ContextUsageDisplay(
-                contextUsage = viewModel.contextUsage
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Context usage takes most of the space
+                Box(modifier = Modifier.weight(1f)) {
+                    ContextUsageDisplay(
+                        contextUsage = viewModel.contextUsage
+                    )
+                }
+
+                // Send button on the right
+                Button(
+                    onClick = {
+                        viewModel.sendPrompt(
+                            prompt = prompt,
+                            systemPrompt = ""
+                        )
+                    },
+                    enabled = !viewModel.isLoading &&
+                            prompt.isNotEmpty() &&
+                            viewModel.currentModelLoaded
+                ) {
+                    Text("Send")
+                }
+            }
+        } else if (viewModel.currentModelLoaded) {
+            // Show send button even without context usage if model is loaded
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.sendPrompt(
+                            prompt = prompt,
+                            systemPrompt = ""
+                        )
+                    },
+                    enabled = !viewModel.isLoading &&
+                            prompt.isNotEmpty() &&
+                            viewModel.currentModelLoaded
+                ) {
+                    Text("Send")
+                }
+            }
         }
 
         // "Show formatted prompt" toggle - now shows raw prompt copy
@@ -513,6 +557,7 @@ fun PromptInput(
 
 /**
  * Send button component - simplified without useFormattedPrompt
+ * NOTE: This component is now integrated into PromptInput above
  */
 @Composable
 fun SendButton(
@@ -520,25 +565,9 @@ fun SendButton(
     prompt: String,
     useFormattedPrompt: Boolean = false  // Keep parameter for compatibility but ignore it
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Button(
-            onClick = {
-                // Always send the raw prompt now
-                viewModel.sendPrompt(
-                    prompt = prompt,
-                    systemPrompt = "" // Not using system prompts for now
-                )
-            },
-            enabled = !viewModel.isLoading &&
-                    prompt.isNotEmpty() &&
-                    viewModel.currentModelLoaded
-        ) {
-            Text("Send")
-        }
-    }
+    // This component is kept for backward compatibility but the Send button
+    // is now integrated into the PromptInput component above
+    // You can remove this from MainActivity since it's handled in PromptInput
 }
 
 /**
@@ -582,7 +611,9 @@ fun ResponseDisplay(
         }
 
         Card(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 120.dp, max = 200.dp) // Same size as input box
         ) {
             Box(
                 modifier = Modifier
@@ -590,23 +621,17 @@ fun ResponseDisplay(
                     .padding(2.dp)
             ) {
                 // Response text with selection support and better scrolling
-                Box(
+                SelectionContainer(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 48.dp) // Leave space for the button
+                        .padding(12.dp)
                 ) {
-                    SelectionContainer(
+                    Text(
+                        text = response,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = response,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        )
-                    }
+                            .verticalScroll(rememberScrollState())
+                    )
                 }
 
                 // Copy button at the bottom right
@@ -622,13 +647,14 @@ fun ResponseDisplay(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
-                        .size(40.dp),
+                        .size(32.dp), // Smaller size for the fixed height box
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Icon(
                         Icons.Default.ContentCopy,
                         contentDescription = "Copy to clipboard",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(16.dp) // Smaller icon
                     )
                 }
             }
