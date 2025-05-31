@@ -32,25 +32,37 @@ While the code is open source and others can use it, **it's optimized for my spe
 - **Context Usage Monitoring**: Real-time token counting and usage visualization
 - **Raw Prompt Mode**: Send prompts exactly as typed without auto-formatting
 
-## 🏗️ Project Structure
+## Project Structure
 
-```
-my-llm-android-app/
-├── app/src/main/java/com/bloodtailor/myllmapp/
-│   ├── MainActivity.kt              # Main UI activity
-│   ├── LlmApplication.kt            # Application class
-│   ├── ui/
-│   │   ├── UiComponents.kt          # Reusable UI components
-│   │   └── theme/                   # Material Design theme
-│   ├── viewmodel/
-│   │   └── LlmViewModel.kt          # MVVM state management
-│   ├── data/
-│   │   └── LlmRepository.kt         # Data layer
-│   └── network/
-│       └── ApiService.kt            # REST API communication
-├── app/build.gradle.kts             # App dependencies
-└── README.md
-```
+The app has been split into the following components:
+
+### 1. Network Layer
+- **ApiService.kt** - Handles all HTTP communications with the LLM server
+- Contains methods for fetching models, checking status, loading/unloading models, and sending prompts
+- Uses OkHttp for networking and returns Kotlin Result types for better error handling
+
+### 2. Data Layer
+- **LlmRepository.kt** - Acts as a single source of truth for data
+- Manages the ApiService and coordinates data operations
+- Handles local data persistence (SharedPreferences)
+- Abstracts network operations from the ViewModel
+
+### 3. ViewModel Layer
+- **LlmViewModel.kt** - Manages UI-related data and business logic
+- Holds UI state (selected model, context length, responses, etc.)
+- Coordinates between UI and repository
+- Survives configuration changes and manages lifecycle
+
+### 4. UI Layer
+- **UiComponents.kt** - Contains reusable UI components
+- Each component is a separate composable function
+- Components include: ModelSelector, ContextLengthInput, PromptInput, ResponseDisplay, etc.
+- **MainActivity.kt** - Main entry point for the app
+- Assembles UI components and manages navigation
+
+### 5. Application Layer
+- **LlmApplication.kt** - Application class for global state
+- Initializes repository and provides application-scoped ViewModels
 
 ## 🚀 Setup Instructions
 
@@ -169,39 +181,6 @@ Based on my [development roadmap](https://docs.google.com/document/d/1qfkpCG09e5
 - [ ] **Model Parameter Prefix/Suffix Buttons**: Buttons to append model's formatting to prompt text
 - [ ] **Full Model Parameter Editing**: Edit all model parameters (temperature, top_p, etc.) with validation
 - [ ] **Saved Prompts with Persistence**: Save/load/edit/delete named prompts that persist across app restarts
-
-## Project Structure
-
-The app has been split into the following components:
-
-### 1. Network Layer
-- **ApiService.kt** - Handles all HTTP communications with the LLM server
-- Contains methods for fetching models, checking status, loading/unloading models, and sending prompts
-- Uses OkHttp for networking and returns Kotlin Result types for better error handling
-
-### 2. Data Layer
-- **LlmRepository.kt** - Acts as a single source of truth for data
-- Manages the ApiService and coordinates data operations
-- Handles local data persistence (SharedPreferences)
-- Abstracts network operations from the ViewModel
-
-### 3. ViewModel Layer
-- **LlmViewModel.kt** - Manages UI-related data and business logic
-- Holds UI state (selected model, context length, responses, etc.)
-- Coordinates between UI and repository
-- Survives configuration changes and manages lifecycle
-
-### 4. UI Layer
-- **UiComponents.kt** - Contains reusable UI components
-- Each component is a separate composable function
-- Components include: ModelSelector, ContextLengthInput, PromptInput, ResponseDisplay, etc.
-- **MainActivity.kt** - Main entry point for the app
-- Assembles UI components and manages navigation
-
-### 5. Application Layer
-- **LlmApplication.kt** - Application class for global state
-- Initializes repository and provides application-scoped ViewModels
-
 
 
 ## 📄 License
