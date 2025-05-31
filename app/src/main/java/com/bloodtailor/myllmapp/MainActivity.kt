@@ -51,6 +51,8 @@ class MainActivity : ComponentActivity() {
         var showSettingsDialog by remember { mutableStateOf(false) }
         var showModelDialog by remember { mutableStateOf(false) }
         var showSettingsOnStart by remember { mutableStateOf(true) }
+        var showFullScreenInput by remember { mutableStateOf(false) }
+        var showFullScreenResponse by remember { mutableStateOf(false) }
 
         // Add connection status state
         val connectionStatus = remember {
@@ -69,131 +71,158 @@ class MainActivity : ComponentActivity() {
 
         // Debugging composable effect
         LaunchedEffect(viewModel.availableModels) {
-            android.util.Log.d("MainActivity", "Observed models change: ${viewModel.availableModels}")
+            android.util.Log.d(
+                "MainActivity",
+                "Observed models change: ${viewModel.availableModels}"
+            )
         }
 
         MaterialTheme {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text("LLM App") },
-                        actions = {
-                            // Connection status indicator
+            if (showFullScreenInput) {
+                FullScreenPromptEditor(
+                    prompt = prompt,
+                    onPromptChanged = { prompt = it },
+                    onSend = {
+                        viewModel.sendPrompt(
+                            prompt = prompt,
+                            systemPrompt = ""
+                        )
+                    },
+                    onClose = { showFullScreenInput = false }
+                )
+            } else if (showFullScreenResponse) {
+                FullScreenResponseViewer(
+                    response = viewModel.llmResponse,
+                    onClose = { showFullScreenResponse = false }
+                )
+            } else {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("LLM App") },
+                            actions = {
+                                // Connection status indicator
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(
+                                                color = if (connectionStatus.value == "Connected")
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.error,
+                                                shape = CircleShape
+                                            )
+                                    )
+                                    Text(
+                                        text = connectionStatus.value,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+
+                                // Settings button
+                                IconButton(onClick = { showSettingsDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        contentDescription = "Server Settings"
+                                    )
+                                }
+
+                                // Model settings button
+                                IconButton(onClick = { showModelDialog = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storage,
+                                        contentDescription = "Model Settings"
+                                    )
+                                }
+                            }
+                        )
+                    }
+                ) { innerPadding ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Status message if needed
+                        if (viewModel.statusMessage.isNotEmpty()) {
+                            Text(
+                                viewModel.statusMessage,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+
+                        // Current model indicator
+                        if (viewModel.currentModelLoaded) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(end = 8.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .background(
-                                            color = if (connectionStatus.value == "Connected")
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.error,
-                                            shape = CircleShape
-                                        )
-                                )
                                 Text(
-                                    text = connectionStatus.value,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            // Settings button
-                            IconButton(onClick = { showSettingsDialog = true }) {
-                                Icon(Icons.Default.Settings, contentDescription = "Server Settings")
-                            }
-
-                            // Model settings button
-                            IconButton(onClick = { showModelDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Storage,
-                                    contentDescription = "Model Settings"
+                                    "Using model: ${viewModel.currentModel}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
                             }
                         }
-                    )
-                }
-            ) { innerPadding ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Status message if needed
-                    if (viewModel.statusMessage.isNotEmpty()) {
-                        Text(
-                            viewModel.statusMessage,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
 
-                    // Current model indicator
-                    if (viewModel.currentModelLoaded) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Prompt input with raw prompt preview and context usage
+                        PromptInput(
+                            prompt = prompt,
+                            onPromptChanged = { prompt = it },
+                            showFormattedPrompt = showFormattedPrompt,
+                            onShowFormattedPromptChanged = { showFormattedPrompt = it },
+                            formattedPrompt = localFormattedPrompt,
+                            viewModel = viewModel,
+                            onFormattedPromptUpdated = { localFormattedPrompt = it },
+                            onExpandClick = { showFullScreenInput = true }  // Add this
+                        )
+
+                        // Send button - simplified to always send raw prompts
+                        SendButton(
+                            viewModel = viewModel,
+                            prompt = prompt
+                        )
+
+                        // Response display - ensure this is in a layout that supports weight
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)  // This works in a Column
                         ) {
-                            Text(
-                                "Using model: ${viewModel.currentModel}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.secondary
+                            ResponseDisplay(
+                                response = viewModel.llmResponse,
+                                isLoading = viewModel.isLoading,
+                                onExpandClick = { showFullScreenResponse = true }  // Add this
                             )
                         }
                     }
+                }
 
-                    // Prompt input with raw prompt preview and context usage
-                    PromptInput(
-                        prompt = prompt,
-                        onPromptChanged = { prompt = it },
-                        showFormattedPrompt = showFormattedPrompt,
-                        onShowFormattedPromptChanged = { showFormattedPrompt = it },
-                        formattedPrompt = localFormattedPrompt,
-                        viewModel = viewModel,
-                        onFormattedPromptUpdated = { localFormattedPrompt = it }
-                    )
-
-                    // Send button - simplified to always send raw prompts
-                    SendButton(
-                        viewModel = viewModel,
-                        prompt = prompt
-                    )
-
-                    // Response display - ensure this is in a layout that supports weight
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)  // This works in a Column
-                    ) {
-                        ResponseDisplay(
-                            response = viewModel.llmResponse,
-                            isLoading = viewModel.isLoading
-                        )
+                // Settings dialog
+                SettingsDialog(
+                    showDialog = showSettingsDialog,
+                    currentServerUrl = viewModel.serverUrl,
+                    onDismiss = { showSettingsDialog = false },
+                    onSave = { newUrl ->
+                        viewModel.updateServerUrl(newUrl, true) // true = autoConnect
                     }
-                }
+                )
+
+                // Model settings dialog
+                ModelSettingsDialog(
+                    showDialog = showModelDialog,
+                    viewModel = viewModel,
+                    onDismiss = { showModelDialog = false }
+                )
             }
-
-            // Settings dialog
-            SettingsDialog(
-                showDialog = showSettingsDialog,
-                currentServerUrl = viewModel.serverUrl,
-                onDismiss = { showSettingsDialog = false },
-                onSave = { newUrl ->
-                    viewModel.updateServerUrl(newUrl, true) // true = autoConnect
-                }
-            )
-
-            // Model settings dialog
-            ModelSettingsDialog(
-                showDialog = showModelDialog,
-                viewModel = viewModel,
-                onDismiss = { showModelDialog = false }
-            )
         }
     }
 }
