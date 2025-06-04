@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
  * Full-screen prompt editor for editing long prompts with navigation controls
@@ -32,6 +33,7 @@ fun FullScreenPromptEditor(
     onPromptChanged: (String) -> Unit,
     onSend: () -> Unit,
     onClose: () -> Unit,
+    viewModel: LlmViewModel,
     modifier: Modifier = Modifier
 ) {
     // Handle back gesture
