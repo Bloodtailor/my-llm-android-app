@@ -98,7 +98,8 @@ class MainActivity : ComponentActivity() {
                             systemPrompt = ""
                         )
                     },
-                    onClose = { showFullScreenInput = false }
+                    onClose = { showFullScreenInput = false },
+                    viewModel = viewModel
                 )
             } else if (showFullScreenResponse) {
                 FullScreenResponseViewer(
