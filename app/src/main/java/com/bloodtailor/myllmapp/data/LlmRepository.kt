@@ -10,16 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 
-// Add this method to LlmRepository.kt
-
-/**
- * Fetch model prefix/suffix parameters
- */
-suspend fun getModelParameters(modelName: String? = null): Result<ModelParameters> =
-    withContext(Dispatchers.IO) {
-        apiService.fetchModelParameters(modelName)
-    }
-
 /**
  * Repository for managing LLM-related data and operations
  */
@@ -41,6 +31,14 @@ class LlmRepository(
         serverUrl = sharedPref.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         apiService = ApiService(serverUrl)
     }
+
+    /**
+     * Fetch model prefix/suffix parameters
+     */
+    suspend fun getModelParameters(modelName: String? = null): Result<ModelParameters> =
+        withContext(Dispatchers.IO) {
+            apiService.fetchModelParameters(modelName)
+        }
 
     /**
      * Update the server URL and save it to preferences
