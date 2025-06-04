@@ -7,6 +7,7 @@ import com.bloodtailor.myllmapp.network.ModelStatus
 import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.TokenCountResult
 import com.bloodtailor.myllmapp.network.ModelParameters
+import com.bloodtailor.myllmapp.network.LoadingParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -39,6 +40,14 @@ class LlmRepository(
     suspend fun getModelParameters(modelName: String? = null): Result<ModelParameters> =
         withContext(Dispatchers.IO) {
             apiService.fetchModelParameters(modelName)
+        }
+
+    /**
+     * Fetch loading parameters from the server
+     */
+    suspend fun getLoadingParameters(): Result<LoadingParameters> =
+        withContext(Dispatchers.IO) {
+            apiService.fetchLoadingParameters()
         }
 
     /**
@@ -88,11 +97,25 @@ class LlmRepository(
     }
 
     /**
-     * Load a model on the server
+     * Load a model on the server with custom loading parameters
+     */
+    suspend fun loadModelWithParameters(
+        modelName: String,
+        loadingParams: Map<String, Any>
+    ): Result<ModelLoadResult> = withContext(Dispatchers.IO) {
+        apiService.loadModelWithParameters(modelName, loadingParams)
+    }
+
+    /**
+     * Load a model on the server (legacy method for compatibility)
      */
     suspend fun loadModel(modelName: String, contextLength: Int? = null): Result<ModelLoadResult> =
         withContext(Dispatchers.IO) {
-            apiService.loadModel(modelName, contextLength)
+            val params = mutableMapOf<String, Any>("model" to modelName)
+            if (contextLength != null) {
+                params["n_ctx"] = contextLength
+            }
+            loadModelWithParameters(modelName, params)
         }
 
     /**

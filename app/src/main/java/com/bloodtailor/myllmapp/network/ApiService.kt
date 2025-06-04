@@ -18,6 +18,138 @@ class ApiService(private val serverBaseUrl: String) {
         .readTimeout(60, TimeUnit.SECONDS)  // Increased timeout for streaming
         .build()
 
+    /**
+     * Fetch loading parameters from the server
+     */
+    suspend fun fetchLoadingParameters(): Result<LoadingParameters> {
+        val tag = "ApiService"
+        android.util.Log.d(tag, "Fetching loading parameters from: $serverBaseUrl/model/loading-parameters")
+
+        return try {
+            val request = Request.Builder()
+                .url("$serverBaseUrl/model/loading-parameters")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: "{}"
+                    android.util.Log.d(tag, "Loading parameters response: $responseBody")
+
+                    try {
+                        val jsonResponse = JSONObject(responseBody)
+
+                        // Parse global defaults
+                        val globalDefaults = mutableMapOf<String, LoadingParameter>()
+                        val globalDefaultsJson = jsonResponse.getJSONObject("global_defaults")
+                        for (key in globalDefaultsJson.keys()) {
+                            val paramJson = globalDefaultsJson.getJSONObject(key)
+                            globalDefaults[key] = LoadingParameter(
+                                default = paramJson.get("default"),
+                                min = if (paramJson.has("min")) paramJson.get("min") else null,
+                                max = if (paramJson.has("max")) paramJson.get("max") else null,
+                                type = paramJson.optString("type", "number"),
+                                description = paramJson.optString("description", "")
+                            )
+                        }
+
+                        // Parse model-specific parameters
+                        val modelSpecific = mutableMapOf<String, Map<String, LoadingParameter>>()
+                        if (jsonResponse.has("model_specific")) {
+                            val modelSpecificJson = jsonResponse.getJSONObject("model_specific")
+                            for (modelName in modelSpecificJson.keys()) {
+                                val modelParams = mutableMapOf<String, LoadingParameter>()
+                                val modelParamsJson = modelSpecificJson.getJSONObject(modelName)
+                                for (paramName in modelParamsJson.keys()) {
+                                    val paramJson = modelParamsJson.getJSONObject(paramName)
+                                    modelParams[paramName] = LoadingParameter(
+                                        default = paramJson.get("default"),
+                                        min = if (paramJson.has("min")) paramJson.get("min") else null,
+                                        max = if (paramJson.has("max")) paramJson.get("max") else null,
+                                        type = paramJson.optString("type", "number"),
+                                        description = paramJson.optString("description", "")
+                                    )
+                                }
+                                modelSpecific[modelName] = modelParams
+                            }
+                        }
+
+                        val loadingParameters = LoadingParameters(
+                            globalDefaults = globalDefaults,
+                            modelSpecific = modelSpecific
+                        )
+
+                        android.util.Log.d(tag, "Parsed loading parameters successfully")
+                        Result.success(loadingParameters)
+                    } catch (e: Exception) {
+                        android.util.Log.e(tag, "Error parsing loading parameters JSON", e)
+                        Result.failure(Exception("Failed to parse loading parameters: ${e.message}"))
+                    }
+                } else {
+                    android.util.Log.w(tag, "Server returned error: ${response.code} - ${response.message}")
+                    Result.failure(Exception("Failed to fetch loading parameters: ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "Network error fetching loading parameters", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Load a model with custom loading parameters
+     */
+    suspend fun loadModelWithParameters(
+        modelName: String,
+        loadingParams: Map<String, Any>
+    ): Result<ModelLoadResult> {
+        return try {
+            val jsonObject = JSONObject()
+            jsonObject.put("model", modelName)
+
+            // Add all loading parameters
+            for ((key, value) in loadingParams) {
+                if (key != "model") { // Don't duplicate the model key
+                    jsonObject.put(key, value)
+                }
+            }
+
+            val jsonRequest = jsonObject.toString()
+            android.util.Log.d("ApiService", "Loading model with params: $jsonRequest")
+
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val requestBody = jsonRequest.toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url("$serverBaseUrl/model/load")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: "{}"
+                    val jsonResponse = JSONObject(responseBody)
+
+                    val result = ModelLoadResult(
+                        model = modelName,
+                        contextLength = if (jsonResponse.has("loading_parameters")) {
+                            val loadingParamsJson = jsonResponse.getJSONObject("loading_parameters")
+                            if (loadingParamsJson.has("n_ctx")) loadingParamsJson.getInt("n_ctx") else null
+                        } else null,
+                        message = jsonResponse.optString("message", "Model loaded successfully")
+                    )
+                    Result.success(result)
+                } else {
+                    val errorBody = response.body?.string() ?: "Unknown error"
+                    android.util.Log.e("ApiService", "Load model failed: $errorBody")
+                    Result.failure(Exception("Failed to load model: ${response.code} - $errorBody"))
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "Exception loading model", e)
+            Result.failure(e)
+        }
+    }
 
     /**
      * Fetch available models from the server with enhanced logging
@@ -88,49 +220,6 @@ class ApiService(private val serverBaseUrl: String) {
                     Result.success(modelStatus)
                 } else {
                     Result.failure(Exception("Failed to check model status: ${response.code}"))
-                }
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Load a model on the server
-     */
-    suspend fun loadModel(modelName: String, contextLength: Int? = null): Result<ModelLoadResult> {
-        return try {
-            val jsonObject = JSONObject()
-            jsonObject.put("model", modelName)
-            if (contextLength != null) {
-                jsonObject.put("context_length", contextLength)
-            }
-            val jsonRequest = jsonObject.toString()
-
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-            val requestBody = jsonRequest.toRequestBody(mediaType)
-
-            val request = Request.Builder()
-                .url("$serverBaseUrl/model/load")
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val responseBody = response.body?.string() ?: "{}"
-                    val jsonResponse = JSONObject(responseBody)
-
-                    val result = ModelLoadResult(
-                        model = modelName,
-                        contextLength = if (jsonResponse.has("context_length"))
-                            jsonResponse.getInt("context_length")
-                        else
-                            contextLength,
-                        message = jsonResponse.optString("message", "Model loaded successfully")
-                    )
-                    Result.success(result)
-                } else {
-                    Result.failure(Exception("Failed to load model: ${response.code}"))
                 }
             }
         } catch (e: Exception) {
@@ -402,3 +491,40 @@ data class ModelParameters(
     val assistantSuffix: String
 )
 
+/**
+ * Represents a single loading parameter with its constraints and metadata
+ */
+data class LoadingParameter(
+    val default: Any,
+    val min: Any? = null,
+    val max: Any? = null,
+    val type: String = "number", // "number", "boolean", "integer", "float"
+    val description: String
+)
+
+/**
+ * Represents all available loading parameters from the server
+ */
+data class LoadingParameters(
+    val globalDefaults: Map<String, LoadingParameter>,
+    val modelSpecific: Map<String, Map<String, LoadingParameter>>
+)
+
+/**
+ * Represents the current values for loading parameters
+ */
+data class LoadingParameterValues(
+    val values: MutableMap<String, Any> = mutableMapOf()
+) {
+    fun setValue(key: String, value: Any) {
+        values[key] = value
+    }
+
+    fun getValue(key: String): Any? = values[key]
+
+    fun getValueOrDefault(key: String, parameter: LoadingParameter): Any {
+        return values[key] ?: parameter.default
+    }
+
+    fun toMap(): Map<String, Any> = values.toMap()
+}
