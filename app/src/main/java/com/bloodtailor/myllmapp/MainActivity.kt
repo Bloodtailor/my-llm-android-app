@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.bloodtailor.myllmapp.ui.*
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
+import com.bloodtailor.myllmapp.viewmodel.LlmViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -30,11 +32,19 @@ class MainActivity : ComponentActivity() {
         // Get application's repository instance
         val repository = (application as LlmApplication).repository
 
-        // Initialize ViewModel with the repository's URL
-        viewModel = ViewModelProvider(this).get(LlmViewModel::class.java)
+        // Initialize ViewModel with SavedStateHandle support for rotation persistence
+        val factory = LlmViewModelFactory(application, this)
+        viewModel = ViewModelProvider(this, factory).get(LlmViewModel::class.java)
 
-        // Update the view model with the current URL from repository
-        viewModel.updateServerUrl(repository.getServerUrl(), true)
+        // Only update server URL if this is a fresh start (not a rotation)
+        // The ViewModel will restore its saved state automatically after rotation
+        if (savedInstanceState == null) {
+            // Fresh start - use repository URL
+            viewModel.updateServerUrl(repository.getServerUrl(), true)
+        } else {
+            // After rotation - sync repository with ViewModel's restored state
+            repository.updateServerUrl(viewModel.serverUrl)
+        }
 
         setContent {
             LLMAppUI()
@@ -44,15 +54,15 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LLMAppUI() {
-        // Local UI state
-        var prompt by remember { mutableStateOf("") }
-        var showFormattedPrompt by remember { mutableStateOf(false) }
-        var localFormattedPrompt by remember { mutableStateOf("") }
-        var showSettingsDialog by remember { mutableStateOf(false) }
-        var showModelDialog by remember { mutableStateOf(false) }
-        var showSettingsOnStart by remember { mutableStateOf(true) }
-        var showFullScreenInput by remember { mutableStateOf(false) }
-        var showFullScreenResponse by remember { mutableStateOf(false) }
+        // UI state that persists across screen rotations
+        var prompt by rememberSaveable { mutableStateOf("") }
+        var showFormattedPrompt by rememberSaveable { mutableStateOf(false) }
+        var localFormattedPrompt by rememberSaveable { mutableStateOf("") }
+        var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+        var showModelDialog by rememberSaveable { mutableStateOf(false) }
+        var showSettingsOnStart by rememberSaveable { mutableStateOf(true) }
+        var showFullScreenInput by rememberSaveable { mutableStateOf(false) }
+        var showFullScreenResponse by rememberSaveable { mutableStateOf(false) }
 
         // Add connection status state
         val connectionStatus = remember {

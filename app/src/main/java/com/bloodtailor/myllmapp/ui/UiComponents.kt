@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -62,8 +63,8 @@ fun FullScreenPromptEditor(
         onClose()
     }
 
-    // Text field state for cursor management - preserve cursor position
-    var textFieldValue by remember {
+    // Text field state for cursor management - preserve cursor position across rotations
+    var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(prompt, TextRange(prompt.length)))
     }
 
@@ -239,7 +240,7 @@ fun ModelSelector(
     enabled: Boolean,
     onModelSelected: (String) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -681,7 +682,7 @@ fun SettingsDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    var tempServerUrl by remember { mutableStateOf(currentServerUrl) }
+    var tempServerUrl by rememberSaveable { mutableStateOf(currentServerUrl) }
 
     LaunchedEffect(currentServerUrl, showDialog) {
         if (showDialog) {
@@ -739,10 +740,10 @@ fun ModelSettingsDialog(
     viewModel: LlmViewModel,
     onDismiss: () -> Unit
 ) {
-    // State variables
-    var selectedModel by remember { mutableStateOf("") }
-    var contextLengthInput by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) } // Add this for the dropdown
+    // State variables with rotation persistence
+    var selectedModel by rememberSaveable { mutableStateOf("") }
+    var contextLengthInput by rememberSaveable { mutableStateOf("") }
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     // Update selectedModel when viewModel values change
     LaunchedEffect(viewModel.availableModels, viewModel.currentModel, showDialog) {
