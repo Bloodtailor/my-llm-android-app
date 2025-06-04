@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,15 +45,15 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LLMAppUI() {
-        // Local UI state
-        var prompt by remember { mutableStateOf("") }
-        var showFormattedPrompt by remember { mutableStateOf(false) }
-        var localFormattedPrompt by remember { mutableStateOf("") }
-        var showSettingsDialog by remember { mutableStateOf(false) }
-        var showModelDialog by remember { mutableStateOf(false) }
-        var showSettingsOnStart by remember { mutableStateOf(true) }
-        var showFullScreenInput by remember { mutableStateOf(false) }
-        var showFullScreenResponse by remember { mutableStateOf(false) }
+        // UI state that persists across screen rotations
+        var prompt by rememberSaveable { mutableStateOf("") }
+        var showFormattedPrompt by rememberSaveable { mutableStateOf(false) }
+        var localFormattedPrompt by rememberSaveable { mutableStateOf("") }
+        var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+        var showModelDialog by rememberSaveable { mutableStateOf(false) }
+        var showSettingsOnStart by rememberSaveable { mutableStateOf(true) }
+        var showFullScreenInput by rememberSaveable { mutableStateOf(false) }
+        var showFullScreenResponse by rememberSaveable { mutableStateOf(false) }
 
         // Add connection status state
         val connectionStatus = remember {
