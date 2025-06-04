@@ -415,21 +415,32 @@ fun ModelSettingsDialog(
             selectedModel = viewModel.currentModel ?:
                     if (viewModel.availableModels.isNotEmpty()) viewModel.availableModels[0] else ""
 
-            // Fetch loading parameters when dialog opens
+            // Fetch loading parameters when dialog opens (only if not already available)
             if (viewModel.availableLoadingParameters == null) {
+                android.util.Log.d("ModelSettingsDialog", "Fetching loading parameters...")
                 viewModel.fetchLoadingParameters()
+            } else {
+                android.util.Log.d("ModelSettingsDialog", "Loading parameters already available")
             }
 
-            // Initialize loading parameter defaults for the selected model
-            if (selectedModel.isNotEmpty()) {
+            // ONLY reset loading parameters if we have no saved values AND no current values
+            if (selectedModel.isNotEmpty() &&
+                viewModel.currentLoadingParameterValues.values.isEmpty() &&
+                viewModel.availableLoadingParameters != null) {
+                android.util.Log.d("ModelSettingsDialog", "No saved values, initializing defaults for $selectedModel")
                 viewModel.resetLoadingParametersToDefaults(selectedModel)
+            } else {
+                android.util.Log.d("ModelSettingsDialog", "Using existing parameter values: ${viewModel.currentLoadingParameterValues.values}")
             }
         }
     }
 
-    // Update loading parameters when model selection changes
+    // Only update loading parameters when model selection actually changes to a different model
     LaunchedEffect(selectedModel) {
-        if (selectedModel.isNotEmpty()) {
+        if (selectedModel.isNotEmpty() &&
+            selectedModel != viewModel.currentModel &&
+            viewModel.currentModel != null) { // Only reset if we're changing from one model to another
+            android.util.Log.d("ModelSettingsDialog", "Model changed from ${viewModel.currentModel} to $selectedModel, resetting parameters")
             viewModel.resetLoadingParametersToDefaults(selectedModel)
         }
     }
