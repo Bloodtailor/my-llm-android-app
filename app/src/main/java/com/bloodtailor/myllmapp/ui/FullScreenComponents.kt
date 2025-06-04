@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
- * Full-screen prompt editor with debugging - temporary version to diagnose the issue
+ * Full-screen prompt editor for editing long prompts with navigation controls
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,12 +53,6 @@ fun FullScreenPromptEditor(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Debug: Log the viewModel state
-    LaunchedEffect(viewModel.currentModelLoaded, viewModel.currentModel) {
-        android.util.Log.d("FullScreenEditor", "Model loaded: ${viewModel.currentModelLoaded}")
-        android.util.Log.d("FullScreenEditor", "Current model: ${viewModel.currentModel}")
-    }
-
     // Update parent state when text changes, but preserve cursor position
     LaunchedEffect(textFieldValue.text) {
         onPromptChanged(textFieldValue.text)
@@ -83,23 +77,6 @@ fun FullScreenPromptEditor(
             .windowInsetsPadding(WindowInsets.systemBars)
             .imePadding() // This handles keyboard padding
     ) {
-        // Debug info card - temporary
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            )
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text("DEBUG INFO:", style = MaterialTheme.typography.labelSmall)
-                Text("Model Loaded: ${viewModel.currentModelLoaded}", style = MaterialTheme.typography.bodySmall)
-                Text("Current Model: ${viewModel.currentModel ?: "null"}", style = MaterialTheme.typography.bodySmall)
-                Text("Button Enabled: ${viewModel.currentModelLoaded}", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-
         // Main text editor
         OutlinedTextField(
             value = textFieldValue,
@@ -184,14 +161,13 @@ fun FullScreenPromptEditor(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // More button - with debug logging
+                // More button - functional for prefix/suffix parameters
                 OutlinedButton(
                     onClick = {
-                        android.util.Log.d("FullScreenEditor", "More button clicked!")
                         showPrefixSuffixDialog = true
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = viewModel.currentModelLoaded // This should match the debug info above
+                    enabled = viewModel.currentModelLoaded
                 ) {
                     Icon(
                         Icons.Default.MoreHoriz,
@@ -205,12 +181,8 @@ fun FullScreenPromptEditor(
         PrefixSuffixDialog(
             showDialog = showPrefixSuffixDialog,
             viewModel = viewModel,
-            onDismiss = {
-                android.util.Log.d("FullScreenEditor", "Dialog dismissed")
-                showPrefixSuffixDialog = false
-            },
+            onDismiss = { showPrefixSuffixDialog = false },
             onAppendText = { text ->
-                android.util.Log.d("FullScreenEditor", "Appending text: $text")
                 // Append the selected text to the current prompt
                 val newText = textFieldValue.text + text
                 val newSelection = TextRange(newText.length)
