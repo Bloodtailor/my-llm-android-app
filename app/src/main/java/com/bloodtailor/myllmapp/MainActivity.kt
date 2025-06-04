@@ -162,11 +162,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         // Status message if needed
                         if (viewModel.statusMessage.isNotEmpty()) {
-                            Text(
-                                viewModel.statusMessage,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
+                            StatusMessage(viewModel.statusMessage)
                         }
 
                         // Current model indicator
@@ -192,7 +188,7 @@ class MainActivity : ComponentActivity() {
                             formattedPrompt = localFormattedPrompt,
                             viewModel = viewModel,
                             onFormattedPromptUpdated = { localFormattedPrompt = it },
-                            onExpandClick = { showFullScreenInput = true }  // Add this
+                            onExpandClick = { showFullScreenInput = true }
                         )
 
                         // Send button - simplified to always send raw prompts
@@ -210,7 +206,7 @@ class MainActivity : ComponentActivity() {
                             ResponseDisplay(
                                 response = viewModel.llmResponse,
                                 isLoading = viewModel.isLoading,
-                                onExpandClick = { showFullScreenResponse = true }  // Add this
+                                onExpandClick = { showFullScreenResponse = true }
                             )
                         }
                     }
