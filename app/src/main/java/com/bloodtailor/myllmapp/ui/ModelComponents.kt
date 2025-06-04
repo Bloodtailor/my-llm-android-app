@@ -88,21 +88,13 @@ fun LoadingParameterToggle(
     onValueChange: (Any) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Debug: Always log what we receive
-    android.util.Log.d("LoadingParamToggle", "$name received currentValue: $currentValue (${currentValue::class.simpleName})")
-
     // Simple boolean conversion
     val checked = when (currentValue) {
         is Boolean -> currentValue
         true, "true", 1 -> true
         false, "false", 0 -> false
-        else -> {
-            android.util.Log.d("LoadingParamToggle", "$name: Unexpected value type, using default")
-            parameter.default as? Boolean ?: false
-        }
+        else -> parameter.default as? Boolean ?: false
     }
-
-    android.util.Log.d("LoadingParamToggle", "$name: checked = $checked")
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -117,7 +109,7 @@ fun LoadingParameterToggle(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "${parameter.description}\nValue: $currentValue, Display: $checked",
+                    text = parameter.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -126,7 +118,6 @@ fun LoadingParameterToggle(
             Switch(
                 checked = checked,
                 onCheckedChange = { newValue ->
-                    android.util.Log.d("LoadingParamToggle", "$name: User clicked toggle: $checked -> $newValue")
                     onValueChange(newValue)
                 }
             )
@@ -152,7 +143,6 @@ fun LoadingParameterNumberInput(
         val newTextValue = (currentValue as? Number)?.toString() ?: parameter.default.toString()
         if (textValue != newTextValue) {
             textValue = newTextValue
-            android.util.Log.d("LoadingParamInput", "$name: text updated to $newTextValue")
         }
     }
 
@@ -186,7 +176,6 @@ fun LoadingParameterNumberInput(
                             (max == null || parsedValue.toDouble() <= max.toDouble())
 
                     if (isValid) {
-                        android.util.Log.d("LoadingParamInput", "$name changed to $parsedValue")
                         onValueChange(parsedValue)
                     } else {
                         isError = true
@@ -244,12 +233,6 @@ fun LoadingParametersSection(
     val availableParams = viewModel.getAvailableLoadingParametersForModel(selectedModel)
     val currentValues = viewModel.currentLoadingParameterValues
 
-    // Debug logging
-    LaunchedEffect(availableParams, currentValues) {
-        android.util.Log.d("LoadingParams", "Available params: ${availableParams.keys}")
-        android.util.Log.d("LoadingParams", "Current values: ${currentValues.values}")
-    }
-
     if (availableParams.isEmpty()) {
         Text(
             text = "Loading parameters...",
@@ -300,8 +283,6 @@ fun LoadingParametersSection(
                     globalParams.forEach { (paramName, parameter) ->
                         val currentValue = currentValues.getValueOrDefault(paramName, parameter)
 
-                        android.util.Log.d("LoadingParams", "Rendering $paramName: currentValue=$currentValue, default=${parameter.default}, values=${currentValues.values}")
-
                         when (parameter.type) {
                             "boolean" -> {
                                 LoadingParameterToggle(
@@ -309,7 +290,6 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "UI callback: Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
@@ -320,7 +300,6 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "UI callback: Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
@@ -359,7 +338,6 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
@@ -370,7 +348,6 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
@@ -384,7 +361,6 @@ fun LoadingParametersSection(
         // Reset button
         OutlinedButton(
             onClick = {
-                android.util.Log.d("LoadingParams", "Reset button clicked")
                 viewModel.resetLoadingParametersToDefaults(selectedModel)
             },
             modifier = Modifier.align(Alignment.End)
@@ -417,20 +393,14 @@ fun ModelSettingsDialog(
 
             // Fetch loading parameters when dialog opens (only if not already available)
             if (viewModel.availableLoadingParameters == null) {
-                android.util.Log.d("ModelSettingsDialog", "Fetching loading parameters...")
                 viewModel.fetchLoadingParameters()
-            } else {
-                android.util.Log.d("ModelSettingsDialog", "Loading parameters already available")
             }
 
             // ONLY reset loading parameters if we have no saved values AND no current values
             if (selectedModel.isNotEmpty() &&
                 viewModel.currentLoadingParameterValues.values.isEmpty() &&
                 viewModel.availableLoadingParameters != null) {
-                android.util.Log.d("ModelSettingsDialog", "No saved values, initializing defaults for $selectedModel")
                 viewModel.resetLoadingParametersToDefaults(selectedModel)
-            } else {
-                android.util.Log.d("ModelSettingsDialog", "Using existing parameter values: ${viewModel.currentLoadingParameterValues.values}")
             }
         }
     }
@@ -440,7 +410,6 @@ fun ModelSettingsDialog(
         if (selectedModel.isNotEmpty() &&
             selectedModel != viewModel.currentModel &&
             viewModel.currentModel != null) { // Only reset if we're changing from one model to another
-            android.util.Log.d("ModelSettingsDialog", "Model changed from ${viewModel.currentModel} to $selectedModel, resetting parameters")
             viewModel.resetLoadingParametersToDefaults(selectedModel)
         }
     }

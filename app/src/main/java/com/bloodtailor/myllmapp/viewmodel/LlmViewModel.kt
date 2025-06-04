@@ -48,7 +48,6 @@ class LlmViewModel(
     var currentLoadingParameterValues by mutableStateOf<LoadingParameterValues>(
         // Try to restore from saved state
         savedStateHandle.get<Map<String, String>>(LOADING_PARAM_VALUES_KEY)?.let { savedValues ->
-            android.util.Log.d("LlmViewModel", "Restoring loading parameters from saved state: $savedValues")
             LoadingParameterValues().apply {
                 savedValues.forEach { (key, stringValue) ->
                     // Convert string back to appropriate type
@@ -62,10 +61,7 @@ class LlmViewModel(
                     values[key] = value
                 }
             }
-        } ?: run {
-            android.util.Log.d("LlmViewModel", "No saved loading parameters found, using empty values")
-            LoadingParameterValues()
-        }
+        } ?: LoadingParameterValues()
     )
         private set
 
@@ -128,8 +124,6 @@ class LlmViewModel(
         // Don't call updateServerUrl here - let MainActivity handle initialization
         // This prevents auto-connecting during state restoration
 
-        android.util.Log.d("LlmViewModel", "ViewModel init - current loading parameter values: ${currentLoadingParameterValues.values}")
-
         // Save initial state
         saveState()
     }
@@ -151,8 +145,6 @@ class LlmViewModel(
             simpleMap[key] = value.toString()
         }
         savedStateHandle[LOADING_PARAM_VALUES_KEY] = simpleMap
-
-        android.util.Log.d("LlmViewModel", "State saved - loading params: ${simpleMap}")
     }
 
     /**
@@ -166,13 +158,8 @@ class LlmViewModel(
 
                     // Only initialize defaults if we don't already have saved values
                     if (currentLoadingParameterValues.values.isEmpty()) {
-                        android.util.Log.d("LlmViewModel", "No saved values, initializing defaults")
                         initializeLoadingParameterDefaults()
-                    } else {
-                        android.util.Log.d("LlmViewModel", "Using existing saved values: ${currentLoadingParameterValues.values}")
                     }
-
-                    android.util.Log.d("LlmViewModel", "Loading parameters fetched successfully")
                 },
                 onFailure = { error ->
                     android.util.Log.e("LlmViewModel", "Error fetching loading parameters", error)
@@ -190,9 +177,6 @@ class LlmViewModel(
         val parameters = availableLoadingParameters ?: return
         val targetModel = modelName ?: currentModel
 
-        android.util.Log.d("LlmViewModel", "initializeLoadingParameterDefaults called for model: $targetModel")
-        android.util.Log.d("LlmViewModel", "Current values before init: ${currentLoadingParameterValues.values}")
-
         val newValues = LoadingParameterValues()
 
         // Set global defaults first
@@ -209,18 +193,13 @@ class LlmViewModel(
         }
 
         currentLoadingParameterValues = newValues
-        saveState() // Save the new defaults
-
-        android.util.Log.d("LlmViewModel", "Initialized defaults: ${newValues.values}")
+        saveState()
     }
 
     /**
      * Update a loading parameter value
      */
     fun updateLoadingParameter(paramName: String, value: Any) {
-        android.util.Log.d("LlmViewModel", "updateLoadingParameter called: $paramName = $value (type: ${value::class.simpleName})")
-        android.util.Log.d("LlmViewModel", "Before update: ${currentLoadingParameterValues.values}")
-
         // Create a completely new instance to force recomposition
         val newValues = LoadingParameterValues()
 
@@ -232,8 +211,6 @@ class LlmViewModel(
 
         // Set the new instance (this should trigger recomposition)
         currentLoadingParameterValues = newValues
-
-        android.util.Log.d("LlmViewModel", "After update: ${currentLoadingParameterValues.values}")
 
         // Save state to persist across rotations
         saveState()
@@ -263,7 +240,6 @@ class LlmViewModel(
      * Reset loading parameters to defaults for the selected model
      */
     fun resetLoadingParametersToDefaults(modelName: String? = null) {
-        android.util.Log.d("LlmViewModel", "resetLoadingParametersToDefaults called for model: $modelName")
         // Clear current values to force reinitialization
         currentLoadingParameterValues = LoadingParameterValues()
         initializeLoadingParameterDefaults(modelName)
@@ -368,8 +344,6 @@ class LlmViewModel(
             val loadingParams = currentLoadingParameterValues.toMap().toMutableMap()
             loadingParams["model"] = modelName
 
-            android.util.Log.d("LlmViewModel", "Loading model with params: $loadingParams")
-
             repository.loadModelWithParameters(modelName, loadingParams).fold(
                 onSuccess = { result ->
                     currentModelLoaded = true
@@ -384,13 +358,11 @@ class LlmViewModel(
                     savedStateHandle[CURRENT_CONTEXT_LENGTH_KEY] = currentContextLength
                     savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
 
-                    android.util.Log.d("LlmViewModel", "Model loaded successfully with parameters: $loadingParams")
                     onComplete?.invoke(true)
                 },
                 onFailure = { error ->
                     statusMessage = "Error: ${error.message}"
                     savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-                    android.util.Log.e("LlmViewModel", "Failed to load model", error)
                     onComplete?.invoke(false)
                 }
             )
