@@ -14,6 +14,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.ModelParameters
+import com.bloodtailor.myllmapp.network.LoadingParameters
+import com.bloodtailor.myllmapp.network.LoadingParameterValues
+import com.bloodtailor.myllmapp.network.LoadingParameter
 
 
 /**
@@ -32,9 +35,38 @@ class LlmViewModel(
         const val MODEL_LOADED_KEY = "model_loaded"
         const val STATUS_MESSAGE_KEY = "status_message"
         const val LLM_RESPONSE_KEY = "llm_response"
+        const val LOADING_PARAM_VALUES_KEY = "loading_param_values"
     }
 
     var currentModelParameters by mutableStateOf<ModelParameters?>(null)
+        private set
+
+    // Loading parameters state
+    var availableLoadingParameters by mutableStateOf<LoadingParameters?>(null)
+        private set
+
+    var currentLoadingParameterValues by mutableStateOf<LoadingParameterValues>(
+        // Try to restore from saved state
+        savedStateHandle.get<Map<String, String>>(LOADING_PARAM_VALUES_KEY)?.let { savedValues ->
+            LoadingParameterValues().apply {
+                savedValues.forEach { (key, stringValue) ->
+                    // Convert string back to appropriate type
+                    val value = when {
+                        stringValue == "true" -> true
+                        stringValue == "false" -> false
+                        stringValue.toIntOrNull() != null -> stringValue.toInt()
+                        stringValue.toFloatOrNull() != null -> stringValue.toFloat()
+                        else -> stringValue
+                    }
+                    values[key] = value
+                }
+            }
+        } ?: LoadingParameterValues()
+    )
+        private set
+
+    // Store the actual parameters used to load the current model
+    var currentModelLoadingParameters by mutableStateOf<Map<String, Any>?>(null)
         private set
 
     // Repository for data operations
@@ -106,6 +138,111 @@ class LlmViewModel(
         savedStateHandle[MODEL_LOADED_KEY] = currentModelLoaded
         savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
         savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+
+        // Convert to a simple map that SavedStateHandle can handle
+        val simpleMap = mutableMapOf<String, String>()
+        currentLoadingParameterValues.toMap().forEach { (key, value) ->
+            simpleMap[key] = value.toString()
+        }
+        savedStateHandle[LOADING_PARAM_VALUES_KEY] = simpleMap
+    }
+
+    /**
+     * Fetch loading parameters from the server
+     */
+    fun fetchLoadingParameters() {
+        viewModelScope.launch {
+            repository.getLoadingParameters().fold(
+                onSuccess = { parameters ->
+                    availableLoadingParameters = parameters
+
+                    // Only initialize defaults if we don't already have saved values
+                    if (currentLoadingParameterValues.values.isEmpty()) {
+                        initializeLoadingParameterDefaults()
+                    }
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error fetching loading parameters", error)
+                    statusMessage = "Error loading parameters: ${error.message}"
+                    savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+                }
+            )
+        }
+    }
+
+    /**
+     * Initialize loading parameter values with defaults for the selected model
+     */
+    private fun initializeLoadingParameterDefaults(modelName: String? = null) {
+        val parameters = availableLoadingParameters ?: return
+        val targetModel = modelName ?: currentModel
+
+        val newValues = LoadingParameterValues()
+
+        // Set global defaults first
+        for ((paramName, parameter) in parameters.globalDefaults) {
+            newValues.setValue(paramName, parameter.default)
+        }
+
+        // Override with model-specific defaults if available
+        if (targetModel != null && parameters.modelSpecific.containsKey(targetModel)) {
+            val modelParams = parameters.modelSpecific[targetModel]!!
+            for ((paramName, parameter) in modelParams) {
+                newValues.setValue(paramName, parameter.default)
+            }
+        }
+
+        currentLoadingParameterValues = newValues
+        saveState()
+    }
+
+    /**
+     * Update a loading parameter value
+     */
+    fun updateLoadingParameter(paramName: String, value: Any) {
+        // Create a completely new instance to force recomposition
+        val newValues = LoadingParameterValues()
+
+        // Copy all existing values
+        newValues.values.putAll(currentLoadingParameterValues.values)
+
+        // Update the specific parameter
+        newValues.setValue(paramName, value)
+
+        // Set the new instance (this should trigger recomposition)
+        currentLoadingParameterValues = newValues
+
+        // Save state to persist across rotations
+        saveState()
+    }
+
+    /**
+     * Get all available loading parameters for the current model
+     */
+    fun getAvailableLoadingParametersForModel(modelName: String? = null): Map<String, LoadingParameter> {
+        val parameters = availableLoadingParameters ?: return emptyMap()
+        val targetModel = modelName ?: currentModel
+
+        val allParams = mutableMapOf<String, LoadingParameter>()
+
+        // Add global parameters
+        allParams.putAll(parameters.globalDefaults)
+
+        // Add model-specific parameters (these override global ones)
+        if (targetModel != null && parameters.modelSpecific.containsKey(targetModel)) {
+            allParams.putAll(parameters.modelSpecific[targetModel]!!)
+        }
+
+        return allParams
+    }
+
+    /**
+     * Reset loading parameters to defaults for the selected model
+     */
+    fun resetLoadingParametersToDefaults(modelName: String? = null) {
+        // Clear current values to force reinitialization
+        currentLoadingParameterValues = LoadingParameterValues()
+        initializeLoadingParameterDefaults(modelName)
     }
 
     fun updateServerUrl(url: String, autoConnect: Boolean = true) {
@@ -123,6 +260,7 @@ class LlmViewModel(
             statusMessage = "Connecting to server..."
             savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
             fetchAvailableModels()
+            fetchLoadingParameters() // Fetch loading parameters when connecting
             checkModelStatus()
         }
     }
@@ -194,19 +332,24 @@ class LlmViewModel(
     }
 
     /**
-     * Load a model
+     * Load a model with custom loading parameters
      */
-    fun loadModel(modelName: String, contextLength: Int? = null, onComplete: ((Boolean) -> Unit)? = null) {
+    fun loadModelWithParameters(modelName: String, onComplete: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
             isLoading = true
             statusMessage = "Loading model..."
             savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
 
-            repository.loadModel(modelName, contextLength).fold(
+            // Get the loading parameters to send
+            val loadingParams = currentLoadingParameterValues.toMap().toMutableMap()
+            loadingParams["model"] = modelName
+
+            repository.loadModelWithParameters(modelName, loadingParams).fold(
                 onSuccess = { result ->
                     currentModelLoaded = true
                     currentModel = modelName
                     currentContextLength = result.contextLength
+                    currentModelLoadingParameters = loadingParams // Store the actual parameters used
                     statusMessage = result.message
 
                     // Save state
@@ -229,6 +372,50 @@ class LlmViewModel(
     }
 
     /**
+     * Load a model (legacy method for compatibility)
+     */
+    fun loadModel(modelName: String, contextLength: Int? = null, onComplete: ((Boolean) -> Unit)? = null) {
+        // If we have loading parameters available, update the context length and use the new method
+        if (availableLoadingParameters != null) {
+            if (contextLength != null) {
+                updateLoadingParameter("n_ctx", contextLength)
+            }
+            loadModelWithParameters(modelName, onComplete)
+        } else {
+            // Fallback to legacy method
+            viewModelScope.launch {
+                isLoading = true
+                statusMessage = "Loading model..."
+                savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+
+                repository.loadModel(modelName, contextLength).fold(
+                    onSuccess = { result ->
+                        currentModelLoaded = true
+                        currentModel = modelName
+                        currentContextLength = result.contextLength
+                        statusMessage = result.message
+
+                        // Save state
+                        savedStateHandle[MODEL_LOADED_KEY] = currentModelLoaded
+                        savedStateHandle[CURRENT_MODEL_KEY] = currentModel
+                        savedStateHandle[CURRENT_CONTEXT_LENGTH_KEY] = currentContextLength
+                        savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+
+                        onComplete?.invoke(true)
+                    },
+                    onFailure = { error ->
+                        statusMessage = "Error: ${error.message}"
+                        savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+                        onComplete?.invoke(false)
+                    }
+                )
+
+                isLoading = false
+            }
+        }
+    }
+
+    /**
      * Unload the current model
      */
     fun unloadModel(onComplete: ((Boolean) -> Unit)? = null) {
@@ -242,6 +429,7 @@ class LlmViewModel(
                     currentModelLoaded = false
                     currentModel = null
                     currentContextLength = null
+                    currentModelLoadingParameters = null // Clear loading parameters
                     statusMessage = message
                     contextUsage = null  // Clear context usage when unloading
 
