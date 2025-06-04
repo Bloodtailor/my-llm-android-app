@@ -17,6 +17,9 @@ import com.bloodtailor.myllmapp.network.ModelParameters
 import com.bloodtailor.myllmapp.network.LoadingParameters
 import com.bloodtailor.myllmapp.network.LoadingParameterValues
 import com.bloodtailor.myllmapp.network.LoadingParameter
+import com.bloodtailor.myllmapp.network.InferenceParameters
+import com.bloodtailor.myllmapp.network.InferenceParameterValues
+
 
 
 /**
@@ -36,6 +39,7 @@ class LlmViewModel(
         const val STATUS_MESSAGE_KEY = "status_message"
         const val LLM_RESPONSE_KEY = "llm_response"
         const val LOADING_PARAM_VALUES_KEY = "loading_param_values"
+        const val INFERENCE_PARAM_VALUES_KEY = "inference_param_values"
     }
 
     var currentModelParameters by mutableStateOf<ModelParameters?>(null)
@@ -120,6 +124,23 @@ class LlmViewModel(
     var contextUsage by mutableStateOf<ContextUsage?>(null)
         private set
 
+    var availableInferenceParameters by mutableStateOf<InferenceParameters?>(null)
+        private set
+
+    var currentInferenceParameterValues by mutableStateOf<InferenceParameterValues>(
+        // Try to restore from saved state
+        savedStateHandle.get<Map<String, String>>(INFERENCE_PARAM_VALUES_KEY)?.let { savedValues ->
+            InferenceParameterValues().apply {
+                savedValues.forEach { (key, stringValue) ->
+                    stringValue.toFloatOrNull()?.let { floatValue ->
+                        values[key] = floatValue
+                    }
+                }
+            }
+        } ?: InferenceParameterValues()
+    )
+        private set
+
     init {
         // Don't call updateServerUrl here - let MainActivity handle initialization
         // This prevents auto-connecting during state restoration
@@ -138,6 +159,14 @@ class LlmViewModel(
         savedStateHandle[MODEL_LOADED_KEY] = currentModelLoaded
         savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
         savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+
+        // Convert inference parameters to a simple map that SavedStateHandle can handle
+        val inferenceSimpleMap = mutableMapOf<String, String>()
+        currentInferenceParameterValues.toMap().forEach { (key, value) ->
+            inferenceSimpleMap[key] = value.toString()
+        }
+        savedStateHandle[INFERENCE_PARAM_VALUES_KEY] = inferenceSimpleMap
+
 
         // Convert to a simple map that SavedStateHandle can handle
         val simpleMap = mutableMapOf<String, String>()
@@ -474,6 +503,122 @@ class LlmViewModel(
                     contextUsage = null
                 }
             )
+        }
+    }
+
+
+    /**
+     * Fetch inference parameters from the server
+     */
+    fun fetchInferenceParameters(modelName: String? = null) {
+        viewModelScope.launch {
+            repository.getInferenceParameters(modelName).fold(
+                onSuccess = { parameters ->
+                    availableInferenceParameters = parameters
+
+                    // Only initialize defaults if we don't already have saved values
+                    if (currentInferenceParameterValues.values.isEmpty()) {
+                        initializeInferenceParameterDefaults()
+                    }
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error fetching inference parameters", error)
+                    statusMessage = "Error loading inference parameters: ${error.message}"
+                    savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+                }
+            )
+        }
+    }
+
+    /**
+     * Initialize inference parameter values with defaults
+     */
+    private fun initializeInferenceParameterDefaults() {
+        val parameters = availableInferenceParameters ?: return
+
+        val newValues = InferenceParameterValues()
+
+        // Set current values as defaults
+        for ((paramName, parameter) in parameters.parameters) {
+            newValues.values[paramName] = parameter.current
+        }
+
+        currentInferenceParameterValues = newValues
+        saveState()
+    }
+
+    /**
+     * Update an inference parameter value
+     */
+    fun updateInferenceParameter(paramName: String, value: Float) {
+        // Create a completely new instance to force recomposition
+        val newValues = InferenceParameterValues()
+
+        // Copy all existing values
+        newValues.values.putAll(currentInferenceParameterValues.values)
+
+        // Update the specific parameter
+        newValues.values[paramName] = value
+
+        // Set the new instance (this should trigger recomposition)
+        currentInferenceParameterValues = newValues
+
+        // Save state to persist across rotations
+        saveState()
+    }
+
+    /**
+     * Reset inference parameters to current model defaults
+     */
+    fun resetInferenceParametersToDefaults() {
+        // Clear current values to force reinitialization
+        currentInferenceParameterValues = InferenceParameterValues()
+        initializeInferenceParameterDefaults()
+    }
+
+    /**
+     * Send a prompt with custom inference parameters
+     */
+    fun sendPromptWithInferenceParameters(
+        prompt: String,
+        systemPrompt: String = ""
+    ) {
+        if (!currentModelLoaded || currentModel == null) {
+            statusMessage = "Please load a model first"
+            savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
+            return
+        }
+
+        isLoading = true
+        llmResponse = "Generating response..."
+        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+
+        // Get current inference parameter values
+        val inferenceParams = currentInferenceParameterValues.toMap()
+
+        // Send the prompt with custom inference parameters
+        repository.sendPromptWithInferenceParameters(
+            prompt = prompt,
+            systemPrompt = systemPrompt,
+            modelName = currentModel!!,
+            inferenceParams = inferenceParams
+        ) { status, content ->
+            viewModelScope.launch(Dispatchers.Main) {
+                when (status) {
+                    "generating", "complete" -> {
+                        llmResponse = content
+                        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+                    }
+                    "error" -> {
+                        llmResponse = "Error: $content"
+                        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+                    }
+                }
+
+                if (status == "complete" || status == "error") {
+                    isLoading = false
+                }
+            }
         }
     }
 

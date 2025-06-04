@@ -57,6 +57,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Compose dependencies for HorizontalPager
+    implementation("androidx.compose.foundation:foundation:1.5.4")
+
     // For XML layout (if you're still using activity_main.xml)
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
 

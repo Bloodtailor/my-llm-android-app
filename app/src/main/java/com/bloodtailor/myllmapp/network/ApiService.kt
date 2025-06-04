@@ -344,24 +344,100 @@ class ApiService(private val serverBaseUrl: String) {
     }
 
     /**
+     * Fetch inference parameters from the server
+     */
+    suspend fun fetchInferenceParameters(modelName: String? = null): Result<InferenceParameters> {
+        val tag = "ApiService"
+
+        val url = if (modelName != null) {
+            "$serverBaseUrl/model/inference-parameters?model=$modelName"
+        } else {
+            "$serverBaseUrl/model/inference-parameters"
+        }
+
+        android.util.Log.d(tag, "Fetching inference parameters from: $url")
+
+        return try {
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: "{}"
+                    android.util.Log.d(tag, "Inference parameters response: $responseBody")
+
+                    try {
+                        val jsonResponse = JSONObject(responseBody)
+                        val model = jsonResponse.getString("model")
+                        val parametersJson = jsonResponse.getJSONObject("parameters")
+
+                        val parameters = mutableMapOf<String, InferenceParameter>()
+
+                        for (key in parametersJson.keys()) {
+                            val paramJson = parametersJson.getJSONObject(key)
+                            parameters[key] = InferenceParameter(
+                                current = paramJson.getDouble("current").toFloat(),
+                                default = paramJson.getDouble("default").toFloat(),
+                                min = paramJson.optDouble("min", 0.0).toFloat(),
+                                max = paramJson.optDouble("max", 2.0).toFloat(),
+                                type = paramJson.optString("type", "float"),
+                                description = paramJson.optString("description", "")
+                            )
+                        }
+
+                        val inferenceParameters = InferenceParameters(
+                            model = model,
+                            parameters = parameters
+                        )
+
+                        android.util.Log.d(tag, "Parsed inference parameters successfully")
+                        Result.success(inferenceParameters)
+                    } catch (e: Exception) {
+                        android.util.Log.e(tag, "Error parsing inference parameters JSON", e)
+                        Result.failure(Exception("Failed to parse inference parameters: ${e.message}"))
+                    }
+                } else {
+                    android.util.Log.w(tag, "Server returned error: ${response.code} - ${response.message}")
+                    Result.failure(Exception("Failed to fetch inference parameters: ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "Network error fetching inference parameters", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Send a streaming prompt to the server with a callback for processing chunks
      * Now sends raw prompts without any formatting
+     */
+    /**
+     * Send a streaming prompt to the server with optional inference parameters
      */
     fun sendStreamingPrompt(
         prompt: String,
         systemPrompt: String = "",
         modelName: String,
+        inferenceParams: Map<String, Float> = emptyMap(),
         callback: (status: String, content: String) -> Unit
     ) {
         try {
-            // Create JSON request - removed formatted_prompt parameter
+            // Create JSON request with inference parameters
             val jsonObject = JSONObject()
-            jsonObject.put("prompt", prompt)  // Send raw prompt exactly as typed
+            jsonObject.put("prompt", prompt)
             jsonObject.put("system_prompt", systemPrompt)
             jsonObject.put("model", modelName)
             jsonObject.put("stream", true)
 
+            // Add inference parameters to the request
+            for ((key, value) in inferenceParams) {
+                jsonObject.put(key, value)
+            }
+
             val jsonRequest = jsonObject.toString()
+            android.util.Log.d("ApiService", "Sending streaming request with inference params: $jsonRequest")
 
             // Prepare the request
             val mediaType = "application/json; charset=utf-8".toMediaType()
@@ -375,7 +451,6 @@ class ApiService(private val serverBaseUrl: String) {
             // Execute the request
             client.newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    // Handle failure
                     callback("error", e.message ?: "Network error")
                 }
 
@@ -386,7 +461,6 @@ class ApiService(private val serverBaseUrl: String) {
                             return
                         }
 
-                        // Read streaming responses
                         val responseBody = response.body
                         if (responseBody == null) {
                             callback("error", "Empty response")
@@ -395,7 +469,6 @@ class ApiService(private val serverBaseUrl: String) {
 
                         responseBody.source().use { source ->
                             while (!source.exhausted()) {
-                                // Read a line
                                 source.readUtf8Line()?.let { line ->
                                     if (line.isNotEmpty()) {
                                         try {
@@ -527,4 +600,43 @@ data class LoadingParameterValues(
     }
 
     fun toMap(): Map<String, Any> = values.toMap()
+}
+
+/**
+ * Represents a single inference parameter with its current value and constraints
+ */
+data class InferenceParameter(
+    val current: Float,
+    val default: Float,
+    val min: Float,
+    val max: Float,
+    val type: String = "float",
+    val description: String
+)
+
+/**
+ * Represents all inference parameters for a model
+ */
+data class InferenceParameters(
+    val model: String,
+    val parameters: Map<String, InferenceParameter>
+)
+
+/**
+ * Represents the current values for inference parameters
+ */
+data class InferenceParameterValues(
+    val values: MutableMap<String, Float> = mutableMapOf()
+) {
+    fun setValue(key: String, value: Float) {
+        values[key] = value
+    }
+
+    fun getValue(key: String): Float? = values[key]
+
+    fun getValueOrDefault(key: String, parameter: InferenceParameter): Float {
+        return values[key] ?: parameter.current
+    }
+
+    fun toMap(): Map<String, Float> = values.toMap()
 }

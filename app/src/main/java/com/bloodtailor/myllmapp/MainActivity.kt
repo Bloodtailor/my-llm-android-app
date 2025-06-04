@@ -4,20 +4,27 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.launch
 import com.bloodtailor.myllmapp.ui.*
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModelFactory
@@ -37,12 +44,9 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, factory).get(LlmViewModel::class.java)
 
         // Only update server URL if this is a fresh start (not a rotation)
-        // The ViewModel will restore its saved state automatically after rotation
         if (savedInstanceState == null) {
-            // Fresh start - use repository URL
             viewModel.updateServerUrl(repository.getServerUrl(), true)
         } else {
-            // After rotation - sync repository with ViewModel's restored state
             repository.updateServerUrl(viewModel.serverUrl)
         }
 
@@ -64,6 +68,10 @@ class MainActivity : ComponentActivity() {
         var showFullScreenInput by rememberSaveable { mutableStateOf(false) }
         var showFullScreenResponse by rememberSaveable { mutableStateOf(false) }
 
+        // Pager state for swipeable screens
+        val pagerState = rememberPagerState(pageCount = { 2 })
+        val coroutineScope = rememberCoroutineScope()
+
         // Add connection status state
         val connectionStatus = remember {
             derivedStateOf {
@@ -79,24 +87,25 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Debugging composable effect
-        LaunchedEffect(viewModel.availableModels) {
-            android.util.Log.d(
-                "MainActivity",
-                "Observed models change: ${viewModel.availableModels}"
-            )
-        }
-
         MaterialTheme {
             if (showFullScreenInput) {
                 FullScreenPromptEditor(
                     prompt = prompt,
                     onPromptChanged = { prompt = it },
                     onSend = {
-                        viewModel.sendPrompt(
-                            prompt = prompt,
-                            systemPrompt = ""
-                        )
+                        if (pagerState.currentPage == 1) {
+                            // We're on inference parameters page - use custom parameters
+                            viewModel.sendPromptWithInferenceParameters(
+                                prompt = prompt,
+                                systemPrompt = ""
+                            )
+                        } else {
+                            // Regular send
+                            viewModel.sendPrompt(
+                                prompt = prompt,
+                                systemPrompt = ""
+                            )
+                        }
                     },
                     onClose = { showFullScreenInput = false },
                     viewModel = viewModel
@@ -110,7 +119,34 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("LLM App") },
+                            title = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text("LLM App")
+
+                                    // Page indicator
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        repeat(2) { index ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (pagerState.currentPage == index) {
+                                                            MaterialTheme.colorScheme.primary
+                                                        } else {
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                                        }
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             actions = {
                                 // Connection status indicator
                                 Row(
@@ -152,82 +188,212 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                    }
-                ) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Status message if needed
-                        if (viewModel.statusMessage.isNotEmpty()) {
-                            StatusMessage(viewModel.statusMessage)
-                        }
-
-                        // Current model indicator
-                        if (viewModel.currentModelLoaded) {
+                    },
+                    bottomBar = {
+                        // Enhanced bottom navigation with page tabs
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                Text(
-                                    "Using model: ${viewModel.currentModel}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.secondary
+                                // Chat tab
+                                NavigationTab(
+                                    icon = Icons.Default.Chat,
+                                    label = "Chat",
+                                    isSelected = pagerState.currentPage == 0,
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(0)
+                                        }
+                                    }
+                                )
+
+                                // Inference Parameters tab
+                                NavigationTab(
+                                    icon = Icons.Default.Tune,
+                                    label = "Parameters",
+                                    isSelected = pagerState.currentPage == 1,
+                                    enabled = viewModel.currentModelLoaded,
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(1)
+                                        }
+                                    }
                                 )
                             }
                         }
-
-                        // Prompt input with raw prompt preview and context usage
-                        PromptInput(
-                            prompt = prompt,
-                            onPromptChanged = { prompt = it },
-                            showFormattedPrompt = showFormattedPrompt,
-                            onShowFormattedPromptChanged = { showFormattedPrompt = it },
-                            formattedPrompt = localFormattedPrompt,
-                            viewModel = viewModel,
-                            onFormattedPromptUpdated = { localFormattedPrompt = it },
-                            onExpandClick = { showFullScreenInput = true }
-                        )
-
-                        // Send button - simplified to always send raw prompts
-                        SendButton(
-                            viewModel = viewModel,
-                            prompt = prompt
-                        )
-
-                        // Response display - ensure this is in a layout that supports weight
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)  // This works in a Column
-                        ) {
-                            ResponseDisplay(
-                                response = viewModel.llmResponse,
-                                isLoading = viewModel.isLoading,
-                                onExpandClick = { showFullScreenResponse = true }
-                            )
+                    }
+                ) { innerPadding ->
+                    // Swipeable content
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) { page ->
+                        when (page) {
+                            0 -> {
+                                // Main chat screen
+                                MainChatScreen(
+                                    viewModel = viewModel,
+                                    prompt = prompt,
+                                    onPromptChanged = { prompt = it },
+                                    showFormattedPrompt = showFormattedPrompt,
+                                    onShowFormattedPromptChanged = { showFormattedPrompt = it },
+                                    localFormattedPrompt = localFormattedPrompt,
+                                    onFormattedPromptUpdated = { localFormattedPrompt = it },
+                                    onExpandInputClick = { showFullScreenInput = true },
+                                    onExpandResponseClick = { showFullScreenResponse = true }
+                                )
+                            }
+                            1 -> {
+                                // Inference parameters screen
+                                InferenceParametersScreen(
+                                    viewModel = viewModel,
+                                    onBackSwipe = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(0)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
 
-                // Settings dialog
+                // Dialogs
                 SettingsDialog(
                     showDialog = showSettingsDialog,
                     currentServerUrl = viewModel.serverUrl,
                     onDismiss = { showSettingsDialog = false },
                     onSave = { newUrl ->
-                        viewModel.updateServerUrl(newUrl, true) // true = autoConnect
+                        viewModel.updateServerUrl(newUrl, true)
                     }
                 )
 
-                // Model settings dialog
                 ModelSettingsDialog(
                     showDialog = showModelDialog,
                     viewModel = viewModel,
                     onDismiss = { showModelDialog = false }
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun NavigationTab(
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        label: String,
+        isSelected: Boolean,
+        enabled: Boolean = true,
+        onClick: () -> Unit
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    } else Color.Transparent
+                )
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .then(
+                    if (enabled) {
+                        Modifier.clickable { onClick() }
+                    } else Modifier
+                )
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = when {
+                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = when {
+                    !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+    }
+
+    @Composable
+    private fun MainChatScreen(
+        viewModel: LlmViewModel,
+        prompt: String,
+        onPromptChanged: (String) -> Unit,
+        showFormattedPrompt: Boolean,
+        onShowFormattedPromptChanged: (Boolean) -> Unit,
+        localFormattedPrompt: String,
+        onFormattedPromptUpdated: (String) -> Unit,
+        onExpandInputClick: () -> Unit,
+        onExpandResponseClick: () -> Unit
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Status message if needed
+            if (viewModel.statusMessage.isNotEmpty()) {
+                StatusMessage(viewModel.statusMessage)
+            }
+
+            // Current model indicator
+            if (viewModel.currentModelLoaded) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Using model: ${viewModel.currentModel}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+
+            // Prompt input
+            PromptInput(
+                prompt = prompt,
+                onPromptChanged = onPromptChanged,
+                showFormattedPrompt = showFormattedPrompt,
+                onShowFormattedPromptChanged = onShowFormattedPromptChanged,
+                formattedPrompt = localFormattedPrompt,
+                viewModel = viewModel,
+                onFormattedPromptUpdated = onFormattedPromptUpdated,
+                onExpandClick = onExpandInputClick
+            )
+
+            // Response display
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                ResponseDisplay(
+                    response = viewModel.llmResponse,
+                    isLoading = viewModel.isLoading,
+                    onExpandClick = onExpandResponseClick
                 )
             }
         }
