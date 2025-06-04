@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.bloodtailor.myllmapp.ui.*
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
+import com.bloodtailor.myllmapp.viewmodel.LlmViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -31,11 +32,19 @@ class MainActivity : ComponentActivity() {
         // Get application's repository instance
         val repository = (application as LlmApplication).repository
 
-        // Initialize ViewModel with the repository's URL
-        viewModel = ViewModelProvider(this).get(LlmViewModel::class.java)
+        // Initialize ViewModel with SavedStateHandle support for rotation persistence
+        val factory = LlmViewModelFactory(application, this)
+        viewModel = ViewModelProvider(this, factory).get(LlmViewModel::class.java)
 
-        // Update the view model with the current URL from repository
-        viewModel.updateServerUrl(repository.getServerUrl(), true)
+        // Only update server URL if this is a fresh start (not a rotation)
+        // The ViewModel will restore its saved state automatically after rotation
+        if (savedInstanceState == null) {
+            // Fresh start - use repository URL
+            viewModel.updateServerUrl(repository.getServerUrl(), true)
+        } else {
+            // After rotation - sync repository with ViewModel's restored state
+            repository.updateServerUrl(viewModel.serverUrl)
+        }
 
         setContent {
             LLMAppUI()
