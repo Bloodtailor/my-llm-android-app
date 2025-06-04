@@ -35,6 +35,7 @@ class LlmViewModel(
         const val MODEL_LOADED_KEY = "model_loaded"
         const val STATUS_MESSAGE_KEY = "status_message"
         const val LLM_RESPONSE_KEY = "llm_response"
+        const val LOADING_PARAM_VALUES_KEY = "loading_param_values"
     }
 
     var currentModelParameters by mutableStateOf<ModelParameters?>(null)
@@ -44,7 +45,14 @@ class LlmViewModel(
     var availableLoadingParameters by mutableStateOf<LoadingParameters?>(null)
         private set
 
-    var currentLoadingParameterValues by mutableStateOf<LoadingParameterValues>(LoadingParameterValues())
+    var currentLoadingParameterValues by mutableStateOf<LoadingParameterValues>(
+        // Try to restore from saved state
+        savedStateHandle.get<Map<String, Any>>(LOADING_PARAM_VALUES_KEY)?.let { savedValues ->
+            LoadingParameterValues().apply {
+                values.putAll(savedValues)
+            }
+        } ?: LoadingParameterValues()
+    )
         private set
 
     // Store the actual parameters used to load the current model
@@ -120,6 +128,7 @@ class LlmViewModel(
         savedStateHandle[MODEL_LOADED_KEY] = currentModelLoaded
         savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
         savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
+        savedStateHandle[LOADING_PARAM_VALUES_KEY] = currentLoadingParameterValues.toMap()
     }
 
     /**
@@ -152,6 +161,11 @@ class LlmViewModel(
         val parameters = availableLoadingParameters ?: return
         val targetModel = modelName ?: currentModel
 
+        // Don't reinitialize if we already have saved values and no specific model change
+        if (currentLoadingParameterValues.values.isNotEmpty() && modelName == null) {
+            return
+        }
+
         val newValues = LoadingParameterValues()
 
         // Set global defaults first
@@ -168,23 +182,32 @@ class LlmViewModel(
         }
 
         currentLoadingParameterValues = newValues
+        saveState() // Save the new defaults
     }
 
     /**
      * Update a loading parameter value
      */
     fun updateLoadingParameter(paramName: String, value: Any) {
-        android.util.Log.d("LlmViewModel", "updateLoadingParameter: $paramName = $value")
+        android.util.Log.d("LlmViewModel", "updateLoadingParameter called: $paramName = $value (type: ${value::class.simpleName})")
+        android.util.Log.d("LlmViewModel", "Before update: ${currentLoadingParameterValues.values}")
 
-        // Update the value in the current parameter values
-        currentLoadingParameterValues.setValue(paramName, value)
+        // Create a completely new instance to force recomposition
+        val newValues = LoadingParameterValues()
 
-        // Force recomposition by creating new instance
-        currentLoadingParameterValues = LoadingParameterValues().apply {
-            values.putAll(currentLoadingParameterValues.values)
-        }
+        // Copy all existing values
+        newValues.values.putAll(currentLoadingParameterValues.values)
 
-        android.util.Log.d("LlmViewModel", "Updated values: ${currentLoadingParameterValues.values}")
+        // Update the specific parameter
+        newValues.setValue(paramName, value)
+
+        // Set the new instance (this should trigger recomposition)
+        currentLoadingParameterValues = newValues
+
+        android.util.Log.d("LlmViewModel", "After update: ${currentLoadingParameterValues.values}")
+
+        // Save state to persist across rotations
+        saveState()
     }
 
     /**
@@ -211,6 +234,8 @@ class LlmViewModel(
      * Reset loading parameters to defaults for the selected model
      */
     fun resetLoadingParametersToDefaults(modelName: String? = null) {
+        // Clear current values to force reinitialization
+        currentLoadingParameterValues = LoadingParameterValues()
         initializeLoadingParameterDefaults(modelName)
     }
 

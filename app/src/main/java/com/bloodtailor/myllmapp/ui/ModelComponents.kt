@@ -88,7 +88,21 @@ fun LoadingParameterToggle(
     onValueChange: (Any) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val checked = (currentValue as? Boolean) ?: (parameter.default as? Boolean) ?: false
+    // Debug: Always log what we receive
+    android.util.Log.d("LoadingParamToggle", "$name received currentValue: $currentValue (${currentValue::class.simpleName})")
+
+    // Simple boolean conversion
+    val checked = when (currentValue) {
+        is Boolean -> currentValue
+        true, "true", 1 -> true
+        false, "false", 0 -> false
+        else -> {
+            android.util.Log.d("LoadingParamToggle", "$name: Unexpected value type, using default")
+            parameter.default as? Boolean ?: false
+        }
+    }
+
+    android.util.Log.d("LoadingParamToggle", "$name: checked = $checked")
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -103,7 +117,7 @@ fun LoadingParameterToggle(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = parameter.description,
+                    text = "${parameter.description}\nValue: $currentValue, Display: $checked",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -112,7 +126,7 @@ fun LoadingParameterToggle(
             Switch(
                 checked = checked,
                 onCheckedChange = { newValue ->
-                    android.util.Log.d("LoadingParam", "Toggle $name changed to $newValue")
+                    android.util.Log.d("LoadingParamToggle", "$name: User clicked toggle: $checked -> $newValue")
                     onValueChange(newValue)
                 }
             )
@@ -130,14 +144,15 @@ fun LoadingParameterNumberInput(
     modifier: Modifier = Modifier
 ) {
     val value = (currentValue as? Number)?.toString() ?: parameter.default.toString()
-    var textValue by remember(currentValue) { mutableStateOf(value) }
-    var isError by remember { mutableStateOf(false) }
+    var textValue by remember(name, currentValue) { mutableStateOf(value) }
+    var isError by remember(name) { mutableStateOf(false) }
 
     // Update text value when currentValue changes from outside
     LaunchedEffect(currentValue) {
         val newTextValue = (currentValue as? Number)?.toString() ?: parameter.default.toString()
         if (textValue != newTextValue) {
             textValue = newTextValue
+            android.util.Log.d("LoadingParamInput", "$name: text updated to $newTextValue")
         }
     }
 
@@ -171,7 +186,7 @@ fun LoadingParameterNumberInput(
                             (max == null || parsedValue.toDouble() <= max.toDouble())
 
                     if (isValid) {
-                        android.util.Log.d("LoadingParam", "NumberInput $name changed to $parsedValue")
+                        android.util.Log.d("LoadingParamInput", "$name changed to $parsedValue")
                         onValueChange(parsedValue)
                     } else {
                         isError = true
@@ -285,7 +300,7 @@ fun LoadingParametersSection(
                     globalParams.forEach { (paramName, parameter) ->
                         val currentValue = currentValues.getValueOrDefault(paramName, parameter)
 
-                        android.util.Log.d("LoadingParams", "Rendering $paramName with value $currentValue")
+                        android.util.Log.d("LoadingParams", "Rendering $paramName: currentValue=$currentValue, default=${parameter.default}, values=${currentValues.values}")
 
                         when (parameter.type) {
                             "boolean" -> {
@@ -294,7 +309,7 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "Updating $paramName to $newValue")
+                                        android.util.Log.d("LoadingParams", "UI callback: Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
@@ -305,7 +320,7 @@ fun LoadingParametersSection(
                                     parameter = parameter,
                                     currentValue = currentValue,
                                     onValueChange = { newValue ->
-                                        android.util.Log.d("LoadingParams", "Updating $paramName to $newValue")
+                                        android.util.Log.d("LoadingParams", "UI callback: Updating $paramName to $newValue")
                                         viewModel.updateLoadingParameter(paramName, newValue)
                                     }
                                 )
