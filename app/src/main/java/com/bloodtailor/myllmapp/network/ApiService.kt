@@ -214,6 +214,47 @@ class ApiService(private val serverBaseUrl: String) {
     }
 
     /**
+     * Fetch model prefix/suffix parameters from the server
+     */
+    suspend fun fetchModelParameters(modelName: String? = null): Result<ModelParameters> {
+        return try {
+            val url = if (modelName != null) {
+                "$serverBaseUrl/model/parameters?model=$modelName"
+            } else {
+                "$serverBaseUrl/model/parameters"
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: "{}"
+                    val jsonResponse = JSONObject(responseBody)
+
+                    val parameters = ModelParameters(
+                        model = jsonResponse.getString("model"),
+                        prePromptPrefix = jsonResponse.getString("pre_prompt_prefix"),
+                        prePromptSuffix = jsonResponse.getString("pre_prompt_suffix"),
+                        inputPrefix = jsonResponse.getString("input_prefix"),
+                        inputSuffix = jsonResponse.getString("input_suffix"),
+                        assistantPrefix = jsonResponse.getString("assistant_prefix"),
+                        assistantSuffix = jsonResponse.getString("assistant_suffix")
+                    )
+
+                    Result.success(parameters)
+                } else {
+                    Result.failure(Exception("Failed to fetch model parameters: ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Send a streaming prompt to the server with a callback for processing chunks
      * Now sends raw prompts without any formatting
      */
@@ -361,43 +402,3 @@ data class ModelParameters(
     val assistantSuffix: String
 )
 
-/**
- * Fetch model prefix/suffix parameters from the server
- */
-suspend fun fetchModelParameters(modelName: String? = null): Result<ModelParameters> {
-    return try {
-        val url = if (modelName != null) {
-            "$serverBaseUrl/model/parameters?model=$modelName"
-        } else {
-            "$serverBaseUrl/model/parameters"
-        }
-
-        val request = Request.Builder()
-            .url(url)
-            .get()
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string() ?: "{}"
-                val jsonResponse = JSONObject(responseBody)
-
-                val parameters = ModelParameters(
-                    model = jsonResponse.getString("model"),
-                    prePromptPrefix = jsonResponse.getString("pre_prompt_prefix"),
-                    prePromptSuffix = jsonResponse.getString("pre_prompt_suffix"),
-                    inputPrefix = jsonResponse.getString("input_prefix"),
-                    inputSuffix = jsonResponse.getString("input_suffix"),
-                    assistantPrefix = jsonResponse.getString("assistant_prefix"),
-                    assistantSuffix = jsonResponse.getString("assistant_suffix")
-                )
-
-                Result.success(parameters)
-            } else {
-                Result.failure(Exception("Failed to fetch model parameters: ${response.code}"))
-            }
-        }
-    } catch (e: Exception) {
-        Result.failure(e)
-    }
-}
