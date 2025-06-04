@@ -9,6 +9,17 @@ import com.bloodtailor.myllmapp.network.TokenCountResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+
+// Add this method to LlmRepository.kt
+
+/**
+ * Fetch model prefix/suffix parameters
+ */
+suspend fun getModelParameters(modelName: String? = null): Result<ModelParameters> =
+    withContext(Dispatchers.IO) {
+        apiService.fetchModelParameters(modelName)
+    }
+
 /**
  * Repository for managing LLM-related data and operations
  */
