@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bloodtailor.myllmapp.network.ContextUsage
+import com.bloodtailor.myllmapp.network.ModelParameters
 
 
 /**
@@ -32,6 +33,9 @@ class LlmViewModel(
         const val STATUS_MESSAGE_KEY = "status_message"
         const val LLM_RESPONSE_KEY = "llm_response"
     }
+
+    var currentModelParameters by mutableStateOf<ModelParameters?>(null)
+        private set
 
     // Repository for data operations
     private val repository = LlmRepository(application, "")
@@ -104,7 +108,6 @@ class LlmViewModel(
         savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
     }
 
-    // Update this method to include an autoConnect parameter
     fun updateServerUrl(url: String, autoConnect: Boolean = true) {
         repository.updateServerUrl(url)
         serverUrl = url
@@ -327,6 +330,60 @@ class LlmViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Fetch model parameters for the current or specified model
+     */
+    fun fetchModelParameters(modelName: String? = null) {
+        viewModelScope.launch {
+            val targetModel = modelName ?: currentModel
+            if (targetModel == null) {
+                android.util.Log.w("LlmViewModel", "No model specified for parameter fetch")
+                return@launch
+            }
+
+            repository.getModelParameters(targetModel).fold(
+                onSuccess = { parameters ->
+                    currentModelParameters = parameters
+                    android.util.Log.d("LlmViewModel", "Model parameters loaded for $targetModel")
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error loading model parameters", error)
+                    currentModelParameters = null
+                }
+            )
+        }
+    }
+
+    /**
+     * Get available prefix/suffix options that are not empty
+     */
+    fun getAvailablePrefixSuffixOptions(): List<Pair<String, String>> {
+        val parameters = currentModelParameters ?: return emptyList()
+
+        val options = mutableListOf<Pair<String, String>>()
+
+        if (parameters.prePromptPrefix.isNotEmpty()) {
+            options.add("System Prefix" to parameters.prePromptPrefix)
+        }
+        if (parameters.prePromptSuffix.isNotEmpty()) {
+            options.add("System Suffix" to parameters.prePromptSuffix)
+        }
+        if (parameters.inputPrefix.isNotEmpty()) {
+            options.add("User Prefix" to parameters.inputPrefix)
+        }
+        if (parameters.inputSuffix.isNotEmpty()) {
+            options.add("User Suffix" to parameters.inputSuffix)
+        }
+        if (parameters.assistantPrefix.isNotEmpty()) {
+            options.add("Assistant Prefix" to parameters.assistantPrefix)
+        }
+        if (parameters.assistantSuffix.isNotEmpty()) {
+            options.add("Assistant Suffix" to parameters.assistantSuffix)
+        }
+
+        return options
     }
 
     /**
