@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
  * Full-screen prompt editor for editing long prompts with navigation controls
@@ -32,12 +33,16 @@ fun FullScreenPromptEditor(
     onPromptChanged: (String) -> Unit,
     onSend: () -> Unit,
     onClose: () -> Unit,
+    viewModel: LlmViewModel,
     modifier: Modifier = Modifier
 ) {
     // Handle back gesture
     BackHandler(enabled = true) {
         onClose()
     }
+
+    // State for prefix/suffix dialog
+    var showPrefixSuffixDialog by remember { mutableStateOf(false) }
 
     // Text field state for cursor management - preserve cursor position across rotations
     var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -156,21 +161,37 @@ fun FullScreenPromptEditor(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // More button - icon only (placeholder for future features)
+                // More button - functional for prefix/suffix parameters
                 OutlinedButton(
                     onClick = {
-                        // TODO: Implement prefix/suffix popup
+                        showPrefixSuffixDialog = true
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = false // Disabled for now
+                    enabled = viewModel.currentModelLoaded
                 ) {
                     Icon(
                         Icons.Default.MoreHoriz,
-                        contentDescription = "More options"
+                        contentDescription = "Model parameters"
                     )
                 }
             }
         }
+
+        // Prefix/Suffix dialog
+        PrefixSuffixDialog(
+            showDialog = showPrefixSuffixDialog,
+            viewModel = viewModel,
+            onDismiss = { showPrefixSuffixDialog = false },
+            onAppendText = { text ->
+                // Append the selected text to the current prompt
+                val newText = textFieldValue.text + text
+                val newSelection = TextRange(newText.length)
+                textFieldValue = textFieldValue.copy(
+                    text = newText,
+                    selection = newSelection
+                )
+            }
+        )
     }
 }
 

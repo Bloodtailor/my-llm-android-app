@@ -6,8 +6,10 @@ import com.bloodtailor.myllmapp.network.ModelLoadResult
 import com.bloodtailor.myllmapp.network.ModelStatus
 import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.TokenCountResult
+import com.bloodtailor.myllmapp.network.ModelParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
 
 /**
  * Repository for managing LLM-related data and operations
@@ -30,6 +32,14 @@ class LlmRepository(
         serverUrl = sharedPref.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         apiService = ApiService(serverUrl)
     }
+
+    /**
+     * Fetch model prefix/suffix parameters
+     */
+    suspend fun getModelParameters(modelName: String? = null): Result<ModelParameters> =
+        withContext(Dispatchers.IO) {
+            apiService.fetchModelParameters(modelName)
+        }
 
     /**
      * Update the server URL and save it to preferences
