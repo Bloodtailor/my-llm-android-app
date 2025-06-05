@@ -1,4 +1,4 @@
-package com.bloodtailor.myllmapp.ui
+package com.bloodtailor.myllmapp.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -22,7 +22,7 @@ import com.bloodtailor.myllmapp.network.InferenceParameterValues
  * Full-screen inference parameters management screen
  */
 @Composable
-fun InferenceParametersScreen(
+fun ParametersScreen(
     viewModel: LlmViewModel,
     onBackSwipe: () -> Unit,
     modifier: Modifier = Modifier

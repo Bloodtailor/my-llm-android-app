@@ -1,4 +1,4 @@
-package com.bloodtailor.myllmapp.ui
+package com.bloodtailor.myllmapp.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.bloodtailor.myllmapp.ui.components.PrefixSuffixDialog
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**

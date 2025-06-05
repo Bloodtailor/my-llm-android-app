@@ -1,4 +1,4 @@
-package com.bloodtailor.myllmapp.ui
+package com.bloodtailor.myllmapp.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

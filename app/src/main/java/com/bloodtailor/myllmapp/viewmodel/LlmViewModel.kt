@@ -116,8 +116,6 @@ class LlmViewModel(
     )
         private set
 
-    // Default values
-    val DEFAULT_CONTEXT_LENGTH = 2048
 
     // Context usage state - now separate from formatting
     var contextUsage by mutableStateOf<ContextUsage?>(null)
@@ -400,50 +398,6 @@ class LlmViewModel(
     }
 
     /**
-     * Load a model (legacy method for compatibility)
-     */
-    fun loadModel(modelName: String, contextLength: Int? = null, onComplete: ((Boolean) -> Unit)? = null) {
-        // If we have loading parameters available, update the context length and use the new method
-        if (availableLoadingParameters != null) {
-            if (contextLength != null) {
-                updateLoadingParameter("n_ctx", contextLength)
-            }
-            loadModelWithParameters(modelName, onComplete)
-        } else {
-            // Fallback to legacy method
-            viewModelScope.launch {
-                isLoading = true
-                statusMessage = "Loading model..."
-                savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-
-                repository.loadModel(modelName, contextLength).fold(
-                    onSuccess = { result ->
-                        currentModelLoaded = true
-                        currentModel = modelName
-                        currentContextLength = result.contextLength
-                        statusMessage = result.message
-
-                        // Save state
-                        savedStateHandle[MODEL_LOADED_KEY] = currentModelLoaded
-                        savedStateHandle[CURRENT_MODEL_KEY] = currentModel
-                        savedStateHandle[CURRENT_CONTEXT_LENGTH_KEY] = currentContextLength
-                        savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-
-                        onComplete?.invoke(true)
-                    },
-                    onFailure = { error ->
-                        statusMessage = "Error: ${error.message}"
-                        savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-                        onComplete?.invoke(false)
-                    }
-                )
-
-                isLoading = false
-            }
-        }
-    }
-
-    /**
      * Unload the current model
      */
     fun unloadModel(onComplete: ((Boolean) -> Unit)? = null) {
@@ -575,10 +529,6 @@ class LlmViewModel(
         initializeInferenceParameterDefaults()
     }
 
-    /**
-     * Send a prompt to the model and get a streaming response
-     * Now automatically uses custom inference parameters if available
-     */
     /**
      * Send a prompt to the model using current inference parameters
      */
