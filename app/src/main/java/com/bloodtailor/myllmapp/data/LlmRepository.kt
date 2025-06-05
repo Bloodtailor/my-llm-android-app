@@ -8,6 +8,7 @@ import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.TokenCountResult
 import com.bloodtailor.myllmapp.network.ModelParameters
 import com.bloodtailor.myllmapp.network.LoadingParameters
+import com.bloodtailor.myllmapp.network.InferenceParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -134,6 +135,34 @@ class LlmRepository(
         }
 
     /**
+     * Fetch inference parameters from the server
+     */
+    suspend fun getInferenceParameters(modelName: String? = null): Result<InferenceParameters> =
+        withContext(Dispatchers.IO) {
+            apiService.fetchInferenceParameters(modelName)
+        }
+
+    /**
+     * Send a prompt with custom inference parameters
+     */
+    fun sendPromptWithInferenceParameters(
+        prompt: String,
+        systemPrompt: String = "",
+        modelName: String,
+        inferenceParams: Map<String, Float>,
+        callback: (status: String, content: String) -> Unit
+    ) {
+        // Use the enhanced sendStreamingPrompt method that includes inference parameters
+        apiService.sendStreamingPrompt(
+            prompt = prompt,
+            systemPrompt = systemPrompt,
+            modelName = modelName,
+            inferenceParams = inferenceParams,
+            callback = callback
+        )
+    }
+
+    /**
      * Debugging method to check server connectivity
      */
     suspend fun checkServerConnectivity(): Result<Boolean> = withContext(Dispatchers.IO) {
@@ -172,11 +201,12 @@ class LlmRepository(
         modelName: String,
         callback: (status: String, content: String) -> Unit
     ) {
-        // Remove formattedPrompt parameter - we're sending raw prompts now
+        // Call the enhanced version with empty inference parameters for backward compatibility
         apiService.sendStreamingPrompt(
             prompt = prompt,
             systemPrompt = systemPrompt,
             modelName = modelName,
+            inferenceParams = emptyMap(),
             callback = callback
         )
     }
