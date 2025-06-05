@@ -191,17 +191,16 @@ class MainActivity : ComponentActivity() {
                     },
                     bottomBar = {
                         // Enhanced bottom navigation with page tabs
-                        Card(
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shadowElevation = 8.dp
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .windowInsetsPadding(WindowInsets.navigationBars)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 // Chat tab
