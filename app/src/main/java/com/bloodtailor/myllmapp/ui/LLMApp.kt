@@ -31,38 +31,34 @@ fun LLMApp(
 
     val uiState = uiStateManager.uiState
 
-    // Handle full-screen modes - wrapped in theme to ensure proper dark mode
+    // Handle full-screen modes
     when {
         uiState.showFullScreenInput -> {
-            MyLLMAppTheme {
-                FullScreenPromptEditor(
-                    prompt = uiState.currentPrompt,
-                    onPromptChanged = { prompt ->
-                        uiStateManager.updatePrompt(prompt)
-                    },
-                    onSend = {
-                        viewModel.sendPrompt(
-                            prompt = uiState.currentPrompt,
-                            systemPrompt = ""
-                        )
-                    },
-                    onClose = {
-                        uiStateManager.hideFullScreenInput()
-                    },
-                    viewModel = viewModel
-                )
-            }
+            FullScreenPromptEditor(
+                prompt = uiState.currentPrompt,
+                onPromptChanged = { prompt ->
+                    uiStateManager.updatePrompt(prompt)
+                },
+                onSend = {
+                    viewModel.sendPrompt(
+                        prompt = uiState.currentPrompt,
+                        systemPrompt = ""
+                    )
+                },
+                onClose = {
+                    uiStateManager.hideFullScreenInput()
+                },
+                viewModel = viewModel
+            )
         }
 
         uiState.showFullScreenResponse -> {
-            MyLLMAppTheme {
-                FullScreenResponseViewer(
-                    response = viewModel.llmResponse,
-                    onClose = {
-                        uiStateManager.hideFullScreenResponse()
-                    }
-                )
-            }
+            FullScreenResponseViewer(
+                response = viewModel.llmResponse,
+                onClose = {
+                    uiStateManager.hideFullScreenResponse()
+                }
+            )
         }
 
         else -> {

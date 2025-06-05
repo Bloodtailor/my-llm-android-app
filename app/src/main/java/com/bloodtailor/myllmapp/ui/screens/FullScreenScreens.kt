@@ -72,127 +72,133 @@ fun FullScreenPromptEditor(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .imePadding() // This handles keyboard padding
+    // Add Surface for proper dark mode background
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        // Main text editor
-        OutlinedTextField(
-            value = textFieldValue,
-            onValueChange = { newValue ->
-                textFieldValue = newValue
-            },
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .focusRequester(focusRequester)
-                .padding(16.dp),
-            label = { Text("Edit your prompt") },
-            placeholder = { Text("Enter your prompt here...") }
-        )
-
-        // Bottom control bar
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .imePadding() // This handles keyboard padding
         ) {
-            Row(
+            // Main text editor
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    textFieldValue = newValue
+                },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
+                    .focusRequester(focusRequester)
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Top button - icon only
-                OutlinedButton(
-                    onClick = {
-                        textFieldValue = textFieldValue.copy(
-                            selection = TextRange(0)
-                        )
-                        keyboardController?.hide()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Go to top"
-                    )
-                }
+                label = { Text("Edit your prompt") },
+                placeholder = { Text("Enter your prompt here...") }
+            )
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Bottom button - icon only
-                OutlinedButton(
-                    onClick = {
-                        val textLength = textFieldValue.text.length
-                        textFieldValue = textFieldValue.copy(
-                            selection = TextRange(textLength)
-                        )
-                        focusRequester.requestFocus()
-                        keyboardController?.show()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Go to bottom and show keyboard"
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Send button - icon only
-                Button(
-                    onClick = {
-                        onSend()
-                        onClose()
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = textFieldValue.text.isNotEmpty()
-                ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = "Send prompt"
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // More button - functional for prefix/suffix parameters
-                OutlinedButton(
-                    onClick = {
-                        showPrefixSuffixDialog = true
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = viewModel.currentModelLoaded
-                ) {
-                    Icon(
-                        Icons.Default.MoreHoriz,
-                        contentDescription = "Model parameters"
-                    )
-                }
-            }
-        }
-
-        // Prefix/Suffix dialog
-        PrefixSuffixDialog(
-            showDialog = showPrefixSuffixDialog,
-            viewModel = viewModel,
-            onDismiss = { showPrefixSuffixDialog = false },
-            onAppendText = { text ->
-                // Append the selected text to the current prompt
-                val newText = textFieldValue.text + text
-                val newSelection = TextRange(newText.length)
-                textFieldValue = textFieldValue.copy(
-                    text = newText,
-                    selection = newSelection
+            // Bottom control bar
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Top button - icon only
+                    OutlinedButton(
+                        onClick = {
+                            textFieldValue = textFieldValue.copy(
+                                selection = TextRange(0)
+                            )
+                            keyboardController?.hide()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Go to top"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Bottom button - icon only
+                    OutlinedButton(
+                        onClick = {
+                            val textLength = textFieldValue.text.length
+                            textFieldValue = textFieldValue.copy(
+                                selection = TextRange(textLength)
+                            )
+                            focusRequester.requestFocus()
+                            keyboardController?.show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Go to bottom and show keyboard"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Send button - icon only
+                    Button(
+                        onClick = {
+                            onSend()
+                            onClose()
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = textFieldValue.text.isNotEmpty()
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send prompt"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // More button - functional for prefix/suffix parameters
+                    OutlinedButton(
+                        onClick = {
+                            showPrefixSuffixDialog = true
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = viewModel.currentModelLoaded
+                    ) {
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = "Model parameters"
+                        )
+                    }
+                }
             }
-        )
+
+            // Prefix/Suffix dialog
+            PrefixSuffixDialog(
+                showDialog = showPrefixSuffixDialog,
+                viewModel = viewModel,
+                onDismiss = { showPrefixSuffixDialog = false },
+                onAppendText = { text ->
+                    // Append the selected text to the current prompt
+                    val newText = textFieldValue.text + text
+                    val newSelection = TextRange(newText.length)
+                    textFieldValue = textFieldValue.copy(
+                        text = newText,
+                        selection = newSelection
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -210,19 +216,25 @@ fun FullScreenResponseViewer(
         onClose()
     }
 
-    // Full-screen text display with proper system bar padding
-    SelectionContainer(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(16.dp)
+    // Add Surface for proper dark mode background
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(
-            text = response,
+        // Full-screen text display with proper system bar padding
+        SelectionContainer(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            style = MaterialTheme.typography.bodyLarge
-        )
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = response,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
     }
 }
