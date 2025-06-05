@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
                     onSend = {
                         if (pagerState.currentPage == 1) {
                             // We're on inference parameters page - use custom parameters
-                            viewModel.sendPromptWithInferenceParameters(
+                            viewModel.sendPrompt(
                                 prompt = prompt,
                                 systemPrompt = ""
                             )
