@@ -201,7 +201,7 @@ fun InferenceParametersScreen(
                     Button(
                         onClick = {
                             // Send a test prompt with current parameters
-                            viewModel.sendPromptWithInferenceParameters(
+                            viewModel.sendPrompt(
                                 prompt = "Hello! Please respond briefly to test these inference parameters.",
                                 systemPrompt = ""
                             )

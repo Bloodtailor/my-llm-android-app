@@ -577,54 +577,11 @@ class LlmViewModel(
     }
 
     /**
-     * Send a prompt with custom inference parameters
-     */
-    fun sendPromptWithInferenceParameters(
-        prompt: String,
-        systemPrompt: String = ""
-    ) {
-        if (!currentModelLoaded || currentModel == null) {
-            statusMessage = "Please load a model first"
-            savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-            return
-        }
-
-        isLoading = true
-        llmResponse = "Generating response..."
-        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
-
-        // Get current inference parameter values
-        val inferenceParams = currentInferenceParameterValues.toMap()
-
-        // Send the prompt with custom inference parameters
-        repository.sendPromptWithInferenceParameters(
-            prompt = prompt,
-            systemPrompt = systemPrompt,
-            modelName = currentModel!!,
-            inferenceParams = inferenceParams
-        ) { status, content ->
-            viewModelScope.launch(Dispatchers.Main) {
-                when (status) {
-                    "generating", "complete" -> {
-                        llmResponse = content
-                        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
-                    }
-                    "error" -> {
-                        llmResponse = "Error: $content"
-                        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
-                    }
-                }
-
-                if (status == "complete" || status == "error") {
-                    isLoading = false
-                }
-            }
-        }
-    }
-
-    /**
      * Send a prompt to the model and get a streaming response
-     * Now sends raw prompts without any formatting
+     * Now automatically uses custom inference parameters if available
+     */
+    /**
+     * Send a prompt to the model using current inference parameters
      */
     fun sendPrompt(
         prompt: String,
@@ -640,11 +597,14 @@ class LlmViewModel(
         llmResponse = "Generating response..."
         savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
 
-        // Send the raw prompt exactly as typed by the user
-        repository.sendStreamingPrompt(
-            prompt = prompt,  // Raw prompt, no formatting
+        // Always use current inference parameter values (defaults or user-modified)
+        val inferenceParams = currentInferenceParameterValues.toMap()
+
+        repository.sendPromptWithInferenceParameters(
+            prompt = prompt,
             systemPrompt = systemPrompt,
-            modelName = currentModel!!
+            modelName = currentModel!!,
+            inferenceParams = inferenceParams
         ) { status, content ->
             viewModelScope.launch(Dispatchers.Main) {
                 when (status) {
