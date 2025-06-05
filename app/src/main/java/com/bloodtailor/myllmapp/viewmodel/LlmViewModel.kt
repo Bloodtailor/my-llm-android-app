@@ -10,7 +10,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.bloodtailor.myllmapp.data.LlmRepository
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.ModelParameters
@@ -679,19 +678,4 @@ class LlmViewModel(
         return options
     }
 
-    /**
-     * Clear the current response
-     */
-    fun clearResponse() {
-        llmResponse = "Response will appear here..."
-        savedStateHandle[LLM_RESPONSE_KEY] = llmResponse
-    }
-
-    /**
-     * Clear the status message
-     */
-    fun clearStatusMessage() {
-        statusMessage = ""
-        savedStateHandle[STATUS_MESSAGE_KEY] = statusMessage
-    }
 }

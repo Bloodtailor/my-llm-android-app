@@ -4,7 +4,6 @@ import android.content.Context
 import com.bloodtailor.myllmapp.network.ApiService
 import com.bloodtailor.myllmapp.network.ModelLoadResult
 import com.bloodtailor.myllmapp.network.ModelStatus
-import com.bloodtailor.myllmapp.network.ContextUsage
 import com.bloodtailor.myllmapp.network.TokenCountResult
 import com.bloodtailor.myllmapp.network.ModelParameters
 import com.bloodtailor.myllmapp.network.LoadingParameters
@@ -158,55 +157,6 @@ class LlmRepository(
             systemPrompt = systemPrompt,
             modelName = modelName,
             inferenceParams = inferenceParams,
-            callback = callback
-        )
-    }
-
-    /**
-     * Debugging method to check server connectivity
-     */
-    suspend fun checkServerConnectivity(): Result<Boolean> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val client = okhttp3.OkHttpClient.Builder()
-                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-
-            val request = okhttp3.Request.Builder()
-                .url("$serverUrl/server/ping")
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    android.util.Log.d("LlmRepository", "Server ping successful")
-                    Result.success(true)
-                } else {
-                    android.util.Log.w("LlmRepository", "Server ping failed with code: ${response.code}")
-                    Result.success(false)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("LlmRepository", "Server ping error", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Send a streaming prompt to the server (now sends raw prompts)
-     * Note: This function doesn't use Dispatchers.IO as the ApiService
-     * handles threading with OkHttp callback
-     */
-    fun sendStreamingPrompt(
-        prompt: String,
-        systemPrompt: String = "",
-        modelName: String,
-        callback: (status: String, content: String) -> Unit
-    ) {
-        // Call the enhanced version with empty inference parameters for backward compatibility
-        apiService.sendStreamingPrompt(
-            prompt = prompt,
-            systemPrompt = systemPrompt,
-            modelName = modelName,
-            inferenceParams = emptyMap(),
             callback = callback
         )
     }
