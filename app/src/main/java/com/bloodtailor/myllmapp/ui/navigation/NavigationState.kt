@@ -1,45 +1,51 @@
 package com.bloodtailor.myllmapp.ui.navigation
 
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.bloodtailor.myllmapp.util.AppConstants
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
- * Navigation state management and helper functions
+ * Navigation state management using HorizontalPager
  */
 class NavigationState(
-    val navController: NavHostController
+    val pagerState: PagerState,
+    private val coroutineScope: CoroutineScope
 ) {
     fun navigateToChat() {
-        navController.navigate(AppConstants.ROUTE_CHAT) {
-            popUpTo(AppConstants.ROUTE_CHAT) { inclusive = true }
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(0)
         }
     }
 
     fun navigateToParameters() {
-        navController.navigate(AppConstants.ROUTE_PARAMETERS) {
-            popUpTo(AppConstants.ROUTE_CHAT)
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(1)
         }
     }
 
-    fun navigateBack() {
-        navController.popBackStack()
-    }
+    val currentPage: Int
+        get() = pagerState.currentPage
 
-    val currentRoute: String?
-        get() = navController.currentDestination?.route
+    val isOnChatScreen: Boolean
+        get() = currentPage == 0
+
+    val isOnParametersScreen: Boolean
+        get() = currentPage == 1
 }
 
 /**
  * Remember navigation state across recompositions
  */
 @Composable
-fun rememberNavigationState(
-    navController: NavHostController = rememberNavController()
-): NavigationState {
-    return remember(navController) {
-        NavigationState(navController)
+fun rememberNavigationState(): NavigationState {
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+
+    return remember(pagerState, coroutineScope) {
+        NavigationState(pagerState, coroutineScope)
     }
 }

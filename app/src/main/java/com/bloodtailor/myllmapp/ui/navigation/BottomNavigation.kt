@@ -22,7 +22,7 @@ import com.bloodtailor.myllmapp.util.AppConstants
  */
 @Composable
 fun AppBottomNavigation(
-    currentRoute: String?,
+    currentPage: Int,
     isParametersEnabled: Boolean,
     onNavigateToChat: () -> Unit,
     onNavigateToParameters: () -> Unit,
@@ -44,7 +44,7 @@ fun AppBottomNavigation(
             NavigationTab(
                 icon = Icons.Default.Chat,
                 label = "Chat",
-                isSelected = currentRoute == AppConstants.ROUTE_CHAT,
+                isSelected = currentPage == 0,
                 enabled = true,
                 onClick = onNavigateToChat
             )
@@ -53,7 +53,7 @@ fun AppBottomNavigation(
             NavigationTab(
                 icon = Icons.Default.Tune,
                 label = "Parameters",
-                isSelected = currentRoute == AppConstants.ROUTE_PARAMETERS,
+                isSelected = currentPage == 1,
                 enabled = isParametersEnabled,
                 onClick = onNavigateToParameters
             )

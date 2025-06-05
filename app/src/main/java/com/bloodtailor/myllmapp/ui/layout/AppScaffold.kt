@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.bloodtailor.myllmapp.ui.navigation.AppBottomNavigation
 import com.bloodtailor.myllmapp.ui.navigation.NavigationState
-import com.bloodtailor.myllmapp.util.AppConstants
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
@@ -32,7 +31,7 @@ fun AppScaffold(
         },
         bottomBar = {
             AppBottomNavigation(
-                currentRoute = navigationState.currentRoute,
+                currentPage = navigationState.currentPage,
                 isParametersEnabled = viewModel.currentModelLoaded,
                 onNavigateToChat = {
                     navigationState.navigateToChat()

@@ -3,11 +3,11 @@ package com.bloodtailor.myllmapp.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.bloodtailor.myllmapp.ui.*
-import com.bloodtailor.myllmapp.ui.components.PromptInput
 import com.bloodtailor.myllmapp.ui.components.StatusMessage
+import com.bloodtailor.myllmapp.ui.components.PromptInput
 import com.bloodtailor.myllmapp.ui.components.ResponseDisplay
 import com.bloodtailor.myllmapp.ui.state.UiStateManager
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
@@ -19,10 +19,12 @@ import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 fun ChatScreen(
     viewModel: LlmViewModel,
     uiStateManager: UiStateManager,
-    onNavigateToParameters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState = uiStateManager.uiState
+
+    // Use rememberSaveable for prompt to persist across rotations
+    var currentPrompt by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -37,30 +39,19 @@ fun ChatScreen(
 
         // Current model indicator
         if (viewModel.currentModelLoaded) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Using model: ${viewModel.currentModel}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-
-                // Quick parameters access
-                TextButton(
-                    onClick = onNavigateToParameters,
-                    enabled = viewModel.currentModelLoaded
-                ) {
-                    Text("Parameters")
-                }
-            }
+            Text(
+                text = "Using model: ${viewModel.currentModel}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // Prompt input
         PromptInput(
-            prompt = uiState.currentPrompt,
+            prompt = currentPrompt,
             onPromptChanged = { newPrompt ->
+                currentPrompt = newPrompt
                 uiStateManager.updatePrompt(newPrompt)
             },
             showFormattedPrompt = uiState.showFormattedPrompt,

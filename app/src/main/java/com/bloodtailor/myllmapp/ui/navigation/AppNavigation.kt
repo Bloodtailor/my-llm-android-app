@@ -1,49 +1,48 @@
 package com.bloodtailor.myllmapp.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import com.bloodtailor.myllmapp.ui.screens.ChatScreen
 import com.bloodtailor.myllmapp.ui.screens.ParametersScreen
 import com.bloodtailor.myllmapp.ui.state.UiStateManager
-import com.bloodtailor.myllmapp.util.AppConstants
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
- * Main navigation component using Navigation Compose
+ * Main navigation component using HorizontalPager for swipeable screens
  */
 @Composable
 fun AppNavigation(
-    navigationState: NavigationState,
+    pagerState: PagerState,
     viewModel: LlmViewModel,
     uiStateManager: UiStateManager,
     modifier: Modifier = Modifier
 ) {
-    NavHost(
-        navController = navigationState.navController,
-        startDestination = AppConstants.ROUTE_CHAT,
-        modifier = modifier
-    ) {
-        // Chat Screen
-        composable(AppConstants.ROUTE_CHAT) {
-            ChatScreen(
-                viewModel = viewModel,
-                uiStateManager = uiStateManager,
-                onNavigateToParameters = {
-                    navigationState.navigateToParameters()
-                }
-            )
-        }
-
-        // Parameters Screen
-        composable(AppConstants.ROUTE_PARAMETERS) {
-            ParametersScreen(
-                viewModel = viewModel,
-                onBackSwipe = {
-                    navigationState.navigateBack()
-                }
-            )
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier.fillMaxSize()
+    ) { page ->
+        when (page) {
+            0 -> {
+                // Chat Screen
+                ChatScreen(
+                    viewModel = viewModel,
+                    uiStateManager = uiStateManager
+                )
+            }
+            1 -> {
+                // Parameters Screen
+                ParametersScreen(
+                    viewModel = viewModel,
+                    onBackSwipe = {
+                        // This will be handled by the bottom nav now
+                    }
+                )
+            }
         }
     }
 }

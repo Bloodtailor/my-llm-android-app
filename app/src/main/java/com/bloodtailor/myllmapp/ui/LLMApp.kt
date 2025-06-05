@@ -3,6 +3,7 @@ package com.bloodtailor.myllmapp.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import com.bloodtailor.myllmapp.ui.screens.FullScreenPromptEditor
 import com.bloodtailor.myllmapp.ui.screens.FullScreenResponseViewer
@@ -12,6 +13,7 @@ import com.bloodtailor.myllmapp.ui.layout.AppScaffold
 import com.bloodtailor.myllmapp.ui.navigation.AppNavigation
 import com.bloodtailor.myllmapp.ui.navigation.rememberNavigationState
 import com.bloodtailor.myllmapp.ui.state.UiStateManager
+import com.bloodtailor.myllmapp.ui.theme.MyLLMAppTheme
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
@@ -29,34 +31,38 @@ fun LLMApp(
 
     val uiState = uiStateManager.uiState
 
-    // Handle full-screen modes
+    // Handle full-screen modes - wrapped in theme to ensure proper dark mode
     when {
         uiState.showFullScreenInput -> {
-            FullScreenPromptEditor(
-                prompt = uiState.currentPrompt,
-                onPromptChanged = { prompt ->
-                    uiStateManager.updatePrompt(prompt)
-                },
-                onSend = {
-                    viewModel.sendPrompt(
-                        prompt = uiState.currentPrompt,
-                        systemPrompt = ""
-                    )
-                },
-                onClose = {
-                    uiStateManager.hideFullScreenInput()
-                },
-                viewModel = viewModel
-            )
+            MyLLMAppTheme {
+                FullScreenPromptEditor(
+                    prompt = uiState.currentPrompt,
+                    onPromptChanged = { prompt ->
+                        uiStateManager.updatePrompt(prompt)
+                    },
+                    onSend = {
+                        viewModel.sendPrompt(
+                            prompt = uiState.currentPrompt,
+                            systemPrompt = ""
+                        )
+                    },
+                    onClose = {
+                        uiStateManager.hideFullScreenInput()
+                    },
+                    viewModel = viewModel
+                )
+            }
         }
 
         uiState.showFullScreenResponse -> {
-            FullScreenResponseViewer(
-                response = viewModel.llmResponse,
-                onClose = {
-                    uiStateManager.hideFullScreenResponse()
-                }
-            )
+            MyLLMAppTheme {
+                FullScreenResponseViewer(
+                    response = viewModel.llmResponse,
+                    onClose = {
+                        uiStateManager.hideFullScreenResponse()
+                    }
+                )
+            }
         }
 
         else -> {
@@ -73,7 +79,7 @@ fun LLMApp(
                 modifier = modifier
             ) { innerPadding ->
                 AppNavigation(
-                    navigationState = navigationState,
+                    pagerState = navigationState.pagerState,
                     viewModel = viewModel,
                     uiStateManager = uiStateManager,
                     modifier = Modifier.padding(innerPadding)
