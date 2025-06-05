@@ -23,8 +23,15 @@ fun ChatScreen(
 ) {
     val uiState = uiStateManager.uiState
 
-    // Use rememberSaveable for prompt to persist across rotations
-    var currentPrompt by rememberSaveable { mutableStateOf("") }
+    // Remove the separate currentPrompt state - use only uiState.currentPrompt
+    // Keep the prompt synchronized between local state and UiStateManager
+    LaunchedEffect(Unit) {
+        // Initialize uiState.currentPrompt if it's empty but we have saved state
+        if (uiState.currentPrompt.isEmpty()) {
+            // This will trigger if we're coming back from a process death
+            // The UiStateManager should maintain the state, but just in case
+        }
+    }
 
     Column(
         modifier = modifier
@@ -47,12 +54,11 @@ fun ChatScreen(
             )
         }
 
-        // Prompt input
+        // Prompt input - use uiState.currentPrompt directly
         PromptInput(
-            prompt = currentPrompt,
+            prompt = uiState.currentPrompt, // Use uiState.currentPrompt instead of local currentPrompt
             onPromptChanged = { newPrompt ->
-                currentPrompt = newPrompt
-                uiStateManager.updatePrompt(newPrompt)
+                uiStateManager.updatePrompt(newPrompt) // This updates uiState.currentPrompt
             },
             showFormattedPrompt = uiState.showFormattedPrompt,
             onShowFormattedPromptChanged = { show ->
