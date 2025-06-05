@@ -3,8 +3,6 @@ package com.bloodtailor.myllmapp.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -14,67 +12,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 import com.bloodtailor.myllmapp.network.LoadingParameter
-
-/**
- * Model selection dropdown component
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ModelSelector(
-    selectedModel: String,
-    availableModels: List<String>,
-    enabled: Boolean,
-    onModelSelected: (String) -> Unit
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("Model:", modifier = Modifier.width(80.dp))
-
-        Box(
-            modifier = Modifier.weight(1f)
-        ) {
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { if (enabled) expanded = !expanded }
-            ) {
-                TextField(
-                    value = selectedModel,
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = enabled,
-                    trailingIcon = {
-                        if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                    },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                )
-
-                if (availableModels.isNotEmpty()) {
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        availableModels.forEach { model ->
-                            DropdownMenuItem(
-                                text = { Text(model) },
-                                onClick = {
-                                    onModelSelected(model)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 /**
  * Loading parameter input components - All using number inputs now
@@ -417,7 +354,7 @@ fun ModelSettingsDialog(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Advanced Model Settings") },
+            title = { Text("Model Settings") },
             text = {
                 Column(
                     modifier = Modifier
@@ -619,94 +556,5 @@ private fun StatusRow(
                 null -> MaterialTheme.colorScheme.onSurface
             }
         )
-    }
-}
-
-/**
- * Context length input component (kept for compatibility)
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ContextLengthInput(
-    contextLength: String,
-    enabled: Boolean,
-    defaultContextLength: Int,
-    onContextLengthChanged: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("Context:", modifier = Modifier.width(80.dp))
-
-        OutlinedTextField(
-            value = contextLength,
-            onValueChange = {
-                // Only allow numeric input
-                if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                    onContextLengthChanged(it)
-                }
-            },
-            enabled = enabled,
-            label = { Text("Context Length") },
-            placeholder = { Text("Default: $defaultContextLength") },
-            singleLine = true,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-/**
- * Model control buttons component (kept for compatibility)
- */
-@Composable
-fun ModelControlButtons(
-    viewModel: LlmViewModel,
-    selectedModel: String,
-    contextLengthInput: String,
-    prompt: String,
-    showFormattedPrompt: Boolean,
-    onFormattedPromptUpdated: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Button(
-            onClick = {
-                // Parse context length if provided
-                val contextLength = contextLengthInput.toIntOrNull()
-
-                viewModel.loadModel(selectedModel, contextLength) { success ->
-                    // Update context usage if prompt exists and checkbox is checked
-                    if (success && prompt.isNotEmpty()) {
-                        viewModel.updateContextUsage(prompt) { rawPrompt ->
-                            // For "show formatted prompt", we just show the raw prompt now
-                            if (showFormattedPrompt) {
-                                onFormattedPromptUpdated(rawPrompt)
-                            }
-                        }
-                    }
-                }
-            },
-            enabled = !viewModel.isLoading &&
-                    (!viewModel.currentModelLoaded ||
-                            (viewModel.currentModel != selectedModel) ||
-                            (contextLengthInput.toIntOrNull() != viewModel.currentContextLength)),
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Load Model")
-        }
-
-        Button(
-            onClick = {
-                viewModel.unloadModel()
-            },
-            enabled = !viewModel.isLoading && viewModel.currentModelLoaded,
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Unload Model")
-        }
     }
 }

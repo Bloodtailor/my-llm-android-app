@@ -194,18 +194,3 @@ fun PromptInput(
         }
     }
 }
-
-/**
- * Send button component - simplified without useFormattedPrompt
- * NOTE: This component is now integrated into PromptInput above
- */
-@Composable
-fun SendButton(
-    viewModel: LlmViewModel,
-    prompt: String,
-    useFormattedPrompt: Boolean = false  // Keep parameter for compatibility but ignore it
-) {
-    // This component is kept for backward compatibility but the Send button
-    // is now integrated into the PromptInput component above
-    // You can remove this from MainActivity since it's handled in PromptInput
-}
