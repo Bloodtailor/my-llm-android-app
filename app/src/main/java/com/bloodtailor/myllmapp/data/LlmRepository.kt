@@ -8,9 +8,9 @@ import com.bloodtailor.myllmapp.network.TokenCountResult
 import com.bloodtailor.myllmapp.network.ModelParameters
 import com.bloodtailor.myllmapp.network.LoadingParameters
 import com.bloodtailor.myllmapp.network.InferenceParameters
+import com.bloodtailor.myllmapp.util.AppConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
 
 /**
  * Repository for managing LLM-related data and operations
@@ -19,18 +19,14 @@ class LlmRepository(
     private val context: Context,
     private var serverUrl: String
 ) {
-    // Shared preferences name and keys
-    private val PREFS_NAME = "LLMAppPreferences"
-    private val SERVER_URL_KEY = "server_url"
-    private val DEFAULT_SERVER_URL = "http://192.168.50.220:5000"
-
     // Initialize API service
     private var apiService = ApiService(serverUrl)
 
     init {
         // Load saved server URL from preferences
-        val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        serverUrl = sharedPref.getString(SERVER_URL_KEY, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
+        val sharedPref = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        serverUrl = sharedPref.getString(AppConstants.SERVER_URL_KEY, AppConstants.DEFAULT_SERVER_URL)
+            ?: AppConstants.DEFAULT_SERVER_URL
         apiService = ApiService(serverUrl)
     }
 
@@ -58,9 +54,9 @@ class LlmRepository(
         apiService = ApiService(url)
 
         // Save to preferences
-        val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val sharedPref = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
-            putString(SERVER_URL_KEY, url)
+            putString(AppConstants.SERVER_URL_KEY, url)
             apply()
         }
     }

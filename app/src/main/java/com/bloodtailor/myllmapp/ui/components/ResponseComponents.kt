@@ -1,4 +1,4 @@
-package com.bloodtailor.myllmapp.ui
+package com.bloodtailor.myllmapp.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
