@@ -27,21 +27,21 @@ fun AppNavigation(
         modifier = modifier.fillMaxSize()
     ) { page ->
         when (page) {
+            AppConstants.NAV_PROMPTS_INDEX -> {
+                // Prompts Screen (left)
+                PromptsScreen(
+                    viewModel = viewModel
+                )
+            }
             AppConstants.NAV_CHAT_INDEX -> {
-                // Chat Screen
+                // Chat Screen (middle - default)
                 ChatScreen(
                     viewModel = viewModel,
                     uiStateManager = uiStateManager
                 )
             }
-            AppConstants.NAV_PROMPTS_INDEX -> {
-                // Prompts Screen
-                PromptsScreen(
-                    viewModel = viewModel
-                )
-            }
             AppConstants.NAV_PARAMETERS_INDEX -> {
-                // Parameters Screen
+                // Parameters Screen (right)
                 ParametersScreen(
                     viewModel = viewModel,
                     onBackSwipe = {

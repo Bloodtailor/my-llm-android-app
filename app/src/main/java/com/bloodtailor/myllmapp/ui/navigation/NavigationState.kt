@@ -52,7 +52,10 @@ class NavigationState(
  */
 @Composable
 fun rememberNavigationState(): NavigationState {
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(
+        pageCount = { 3 },
+        initialPage = AppConstants.NAV_CHAT_INDEX  // Start with Chat (middle)
+    )
     val coroutineScope = rememberCoroutineScope()
 
     return remember(pagerState, coroutineScope) {

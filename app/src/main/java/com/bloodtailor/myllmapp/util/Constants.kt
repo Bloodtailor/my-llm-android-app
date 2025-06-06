@@ -18,8 +18,8 @@ object AppConstants {
     const val ROUTE_PARAMETERS = "parameters"
 
     // Navigation Indices
-    const val NAV_CHAT_INDEX = 0
-    const val NAV_PROMPTS_INDEX = 1
+    const val NAV_PROMPTS_INDEX = 0
+    const val NAV_CHAT_INDEX = 1
     const val NAV_PARAMETERS_INDEX = 2
 
     // Network Timeouts (in seconds)

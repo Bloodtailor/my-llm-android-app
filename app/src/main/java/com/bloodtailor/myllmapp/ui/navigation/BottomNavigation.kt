@@ -42,17 +42,7 @@ fun AppBottomNavigation(
                 .padding(horizontal = 8.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Chat tab
-            NavigationTab(
-                icon = Icons.Default.Chat,
-                label = "Chat",
-                isSelected = currentPage == AppConstants.NAV_CHAT_INDEX,
-                enabled = true,
-                onClick = onNavigateToChat,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Prompts tab
+            // Prompts tab (left)
             NavigationTab(
                 icon = Icons.Default.BookmarkBorder,
                 label = "Prompts",
@@ -62,7 +52,17 @@ fun AppBottomNavigation(
                 modifier = Modifier.weight(1f)
             )
 
-            // Parameters tab
+            // Chat tab (middle - default)
+            NavigationTab(
+                icon = Icons.Default.Chat,
+                label = "Chat",
+                isSelected = currentPage == AppConstants.NAV_CHAT_INDEX,
+                enabled = true,
+                onClick = onNavigateToChat,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Parameters tab (right)
             NavigationTab(
                 icon = Icons.Default.Tune,
                 label = "Parameters",
