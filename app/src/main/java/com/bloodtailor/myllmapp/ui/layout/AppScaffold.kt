@@ -22,7 +22,7 @@ fun AppScaffold(
     content: @Composable (PaddingValues) -> Unit
 ) {
     Scaffold(
-        topBar = {
+        topBar =  {
             AppTopBar(
                 viewModel = viewModel,
                 onSettingsClick = onSettingsClick,
@@ -35,6 +35,9 @@ fun AppScaffold(
                 isParametersEnabled = viewModel.currentModelLoaded,
                 onNavigateToChat = {
                     navigationState.navigateToChat()
+                },
+                onNavigateToPrompts = {
+                    navigationState.navigateToPrompts()
                 },
                 onNavigateToParameters = {
                     navigationState.navigateToParameters()

@@ -9,6 +9,11 @@ import com.bloodtailor.myllmapp.network.ModelParameters
 import com.bloodtailor.myllmapp.network.LoadingParameters
 import com.bloodtailor.myllmapp.network.InferenceParameters
 import com.bloodtailor.myllmapp.util.AppConstants
+import com.bloodtailor.myllmapp.data.database.AppDatabase
+import com.bloodtailor.myllmapp.data.database.SavedPrompt
+import com.bloodtailor.myllmapp.data.database.SavedPromptCreate
+import kotlinx.coroutines.flow.Flow
+import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -22,12 +27,98 @@ class LlmRepository(
     // Initialize API service
     private var apiService = ApiService(serverUrl)
 
+    // Initialize database
+    private val database = AppDatabase.getDatabase(context)
+    private val savedPromptDao = database.savedPromptDao()
+
     init {
         // Load saved server URL from preferences
         val sharedPref = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
         serverUrl = sharedPref.getString(AppConstants.SERVER_URL_KEY, AppConstants.DEFAULT_SERVER_URL)
             ?: AppConstants.DEFAULT_SERVER_URL
         apiService = ApiService(serverUrl)
+    }
+
+    /**
+     * Get all saved prompts as a Flow for reactive UI updates
+     */
+    fun getAllSavedPrompts(): Flow<List<SavedPrompt>> = savedPromptDao.getAllPrompts()
+
+    /**
+     * Get a specific saved prompt by ID
+     */
+    suspend fun getSavedPromptById(id: Long): SavedPrompt? = withContext(Dispatchers.IO) {
+        savedPromptDao.getPromptById(id)
+    }
+
+    /**
+     * Create a new saved prompt
+     */
+    suspend fun createSavedPrompt(promptCreate: SavedPromptCreate): Result<Long> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = SavedPrompt(
+                name = promptCreate.name,
+                content = promptCreate.content,
+                createdAt = Date(),
+                updatedAt = Date()
+            )
+            val id = savedPromptDao.insertPrompt(prompt)
+            Result.success(id)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update an existing saved prompt
+     */
+    suspend fun updateSavedPrompt(prompt: SavedPrompt): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val updatedPrompt = prompt.copy(updatedAt = Date())
+            savedPromptDao.updatePrompt(updatedPrompt)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete multiple saved prompts by their IDs
+     */
+    suspend fun deleteSavedPrompts(ids: List<Long>): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            savedPromptDao.deletePrompts(ids)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete a single saved prompt
+     */
+    suspend fun deleteSavedPrompt(prompt: SavedPrompt): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            savedPromptDao.deletePrompt(prompt)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Search saved prompts by name or content
+     */
+    fun searchSavedPrompts(query: String): Flow<List<SavedPrompt>> {
+        val searchQuery = "%$query%"
+        return savedPromptDao.searchPrompts(searchQuery)
+    }
+
+    /**
+     * Get count of saved prompts
+     */
+    suspend fun getSavedPromptCount(): Int = withContext(Dispatchers.IO) {
+        savedPromptDao.getPromptCount()
     }
 
     /**

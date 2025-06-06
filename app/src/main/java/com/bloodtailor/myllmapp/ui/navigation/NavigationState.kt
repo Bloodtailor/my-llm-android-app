@@ -5,6 +5,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.bloodtailor.myllmapp.util.AppConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -17,13 +18,19 @@ class NavigationState(
 ) {
     fun navigateToChat() {
         coroutineScope.launch {
-            pagerState.animateScrollToPage(0)
+            pagerState.animateScrollToPage(AppConstants.NAV_CHAT_INDEX)
+        }
+    }
+
+    fun navigateToPrompts() {
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(AppConstants.NAV_PROMPTS_INDEX)
         }
     }
 
     fun navigateToParameters() {
         coroutineScope.launch {
-            pagerState.animateScrollToPage(1)
+            pagerState.animateScrollToPage(AppConstants.NAV_PARAMETERS_INDEX)
         }
     }
 
@@ -31,10 +38,13 @@ class NavigationState(
         get() = pagerState.currentPage
 
     val isOnChatScreen: Boolean
-        get() = currentPage == 0
+        get() = currentPage == AppConstants.NAV_CHAT_INDEX
+
+    val isOnPromptsScreen: Boolean
+        get() = currentPage == AppConstants.NAV_PROMPTS_INDEX
 
     val isOnParametersScreen: Boolean
-        get() = currentPage == 1
+        get() = currentPage == AppConstants.NAV_PARAMETERS_INDEX
 }
 
 /**
@@ -42,7 +52,7 @@ class NavigationState(
  */
 @Composable
 fun rememberNavigationState(): NavigationState {
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
     return remember(pagerState, coroutineScope) {

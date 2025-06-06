@@ -18,6 +18,9 @@ import com.bloodtailor.myllmapp.network.LoadingParameterValues
 import com.bloodtailor.myllmapp.network.LoadingParameter
 import com.bloodtailor.myllmapp.network.InferenceParameters
 import com.bloodtailor.myllmapp.network.InferenceParameterValues
+import com.bloodtailor.myllmapp.data.database.SavedPrompt
+import com.bloodtailor.myllmapp.data.database.SavedPromptCreate
+import kotlinx.coroutines.flow.Flow
 
 
 
@@ -626,6 +629,82 @@ class LlmViewModel(
         }
 
         return options
+    }
+
+    /**
+     * Get all saved prompts as a Flow for reactive UI updates
+     */
+    fun getAllSavedPrompts(): Flow<List<SavedPrompt>> {
+        return repository.getAllSavedPrompts()
+    }
+
+    /**
+     * Get a specific saved prompt by ID
+     */
+    suspend fun getSavedPromptById(id: Long): SavedPrompt? {
+        return repository.getSavedPromptById(id)
+    }
+
+    /**
+     * Create a new saved prompt
+     */
+    fun createSavedPrompt(name: String, content: String, onComplete: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            val promptCreate = SavedPromptCreate(name = name, content = content)
+            repository.createSavedPrompt(promptCreate).fold(
+                onSuccess = { id ->
+                    android.util.Log.d("LlmViewModel", "Created saved prompt with ID: $id")
+                    onComplete?.invoke(true, null)
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error creating saved prompt", error)
+                    onComplete?.invoke(false, error.message)
+                }
+            )
+        }
+    }
+
+    /**
+     * Update an existing saved prompt
+     */
+    fun updateSavedPrompt(prompt: SavedPrompt, onComplete: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            repository.updateSavedPrompt(prompt).fold(
+                onSuccess = {
+                    android.util.Log.d("LlmViewModel", "Updated saved prompt: ${prompt.name}")
+                    onComplete?.invoke(true, null)
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error updating saved prompt", error)
+                    onComplete?.invoke(false, error.message)
+                }
+            )
+        }
+    }
+
+    /**
+     * Delete multiple saved prompts by their IDs
+     */
+    fun deleteSavedPrompts(ids: List<Long>, onComplete: ((Boolean, String?) -> Unit)? = null) {
+        viewModelScope.launch {
+            repository.deleteSavedPrompts(ids).fold(
+                onSuccess = {
+                    android.util.Log.d("LlmViewModel", "Deleted ${ids.size} saved prompts")
+                    onComplete?.invoke(true, null)
+                },
+                onFailure = { error ->
+                    android.util.Log.e("LlmViewModel", "Error deleting saved prompts", error)
+                    onComplete?.invoke(false, error.message)
+                }
+            )
+        }
+    }
+
+    /**
+     * Search saved prompts by name or content
+     */
+    fun searchSavedPrompts(query: String): Flow<List<SavedPrompt>> {
+        return repository.searchSavedPrompts(query)
     }
 
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,13 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.bloodtailor.myllmapp.util.AppConstants
 
 /**
- * Bottom navigation bar component
+ * Bottom navigation bar component with 3 tabs
  */
 @Composable
 fun AppBottomNavigation(
     currentPage: Int,
     isParametersEnabled: Boolean,
     onNavigateToChat: () -> Unit,
+    onNavigateToPrompts: () -> Unit,
     onNavigateToParameters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -37,25 +39,37 @@ fun AppBottomNavigation(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             // Chat tab
             NavigationTab(
                 icon = Icons.Default.Chat,
                 label = "Chat",
-                isSelected = currentPage == 0,
+                isSelected = currentPage == AppConstants.NAV_CHAT_INDEX,
                 enabled = true,
-                onClick = onNavigateToChat
+                onClick = onNavigateToChat,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Prompts tab
+            NavigationTab(
+                icon = Icons.Default.BookmarkBorder,
+                label = "Prompts",
+                isSelected = currentPage == AppConstants.NAV_PROMPTS_INDEX,
+                enabled = true,
+                onClick = onNavigateToPrompts,
+                modifier = Modifier.weight(1f)
             )
 
             // Parameters tab
             NavigationTab(
                 icon = Icons.Default.Tune,
                 label = "Parameters",
-                isSelected = currentPage == 1,
+                isSelected = currentPage == AppConstants.NAV_PARAMETERS_INDEX,
                 enabled = isParametersEnabled,
-                onClick = onNavigateToParameters
+                onClick = onNavigateToParameters,
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -82,7 +96,7 @@ private fun NavigationTab(
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 } else Color.Transparent
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .then(
                 if (enabled) {
                     Modifier.clickable { onClick() }
