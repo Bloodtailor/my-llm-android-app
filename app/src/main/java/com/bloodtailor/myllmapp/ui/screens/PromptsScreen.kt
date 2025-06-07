@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bloodtailor.myllmapp.data.database.SavedPrompt
+import com.bloodtailor.myllmapp.ui.state.UiStateManager
 import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 
 /**
@@ -38,7 +39,9 @@ import com.bloodtailor.myllmapp.viewmodel.LlmViewModel
 @Composable
 fun PromptsScreen(
     viewModel: LlmViewModel,
+    uiStateManager: UiStateManager,
     modifier: Modifier = Modifier
+
 ) {
     // Collect saved prompts from the ViewModel
     val savedPrompts by viewModel.getAllSavedPrompts().collectAsState(initial = emptyList())
@@ -52,6 +55,8 @@ fun PromptsScreen(
     var editingPrompt by remember { mutableStateOf<SavedPrompt?>(null) }
 
     val context = LocalContext.current
+
+
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -139,8 +144,7 @@ fun PromptsScreen(
                                     }
                                 } else {
                                     // Open in editor
-                                    editingPrompt = prompt
-                                    showEditor = true
+                                    uiStateManager.showSavedPromptEditor(prompt)
                                 }
                             },
                             onCardLongClick = {
@@ -170,8 +174,7 @@ fun PromptsScreen(
             FloatingActionButton(
                 onClick = {
                     // Create new prompt
-                    editingPrompt = null
-                    showEditor = true
+                    uiStateManager.showSavedPromptEditor(null)
                 },
                 modifier = Modifier.padding(16.dp),
                 containerColor = MaterialTheme.colorScheme.primary
@@ -241,43 +244,6 @@ fun PromptsScreen(
                 }
             }
         }
-    }
-
-    // Full-screen editor
-    if (showEditor) {
-        SavedPromptFullScreenEditor(
-            prompt = editingPrompt,
-            onSave = { name, content ->
-                if (editingPrompt != null) {
-                    // Update existing prompt
-                    val updatedPrompt = editingPrompt!!.copy(name = name, content = content)
-                    viewModel.updateSavedPrompt(updatedPrompt) { success, error ->
-                        if (success) {
-                            showEditor = false
-                            editingPrompt = null
-                            Toast.makeText(context, "Prompt updated", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Error: ${error ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                } else {
-                    // Create new prompt
-                    viewModel.createSavedPrompt(name, content) { success, error ->
-                        if (success) {
-                            showEditor = false
-                            editingPrompt = null
-                            Toast.makeText(context, "Prompt saved", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Error: ${error ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            },
-            onCancel = {
-                showEditor = false
-                editingPrompt = null
-            }
-        )
     }
 }
 

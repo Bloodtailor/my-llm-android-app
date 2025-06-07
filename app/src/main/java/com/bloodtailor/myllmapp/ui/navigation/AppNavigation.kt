@@ -30,7 +30,8 @@ fun AppNavigation(
             AppConstants.NAV_PROMPTS_INDEX -> {
                 // Prompts Screen (left)
                 PromptsScreen(
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    uiStateManager = uiStateManager
                 )
             }
             AppConstants.NAV_CHAT_INDEX -> {
